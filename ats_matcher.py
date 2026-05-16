@@ -153,12 +153,41 @@ def score_job(job):
     return job
 
 
+MAX_CLAUDE_CALLS = 15   # Cap Claude API calls per run to control costs
+
+
 def filter_best_fits(jobs):
     """Score all jobs and return only those meeting threshold, sorted by score."""
-    scored = []
+    # Stage 1: keyword-score everything (free, fast)
     for job in jobs:
-        score_job(job)
-        scored.append(job)
+        desc = job.get("description", "")
+        kw, cats, gaps = keyword_score(desc)
+        job["keyword_score"] = kw
+        job["keyword_categories"] = cats
+        job["keyword_gaps"] = gaps
+        job["final_score"] = kw   # provisional
+
+    # Stage 2: Claude AI only on top-N by keyword score (saves credits)
+    if ANTHROPIC_API_KEY:
+        top_jobs = sorted(jobs, key=lambda j: j["keyword_score"], reverse=True)[:MAX_CLAUDE_CALLS]
+        print(f"[ATS] Sending top {len(top_jobs)} keyword-filtered jobs to Claude AI...")
+        for job in top_jobs:
+            desc = job.get("description", "")
+            ai_result = claude_score(desc)
+            if ai_result:
+                job["ai_score"] = ai_result.get("score", 0)
+                job["ai_verdict"] = ai_result.get("verdict", "UNKNOWN")
+                job["ai_reason"] = ai_result.get("reason", "")
+                job["ai_missing"] = ai_result.get("missing_skills", [])
+                job["final_score"] = int(job["keyword_score"] * 0.2 + job["ai_score"] * 0.8)
+            else:
+                job["ai_score"] = None
+                job["ai_verdict"] = "SKIPPED"
+                job["ai_reason"] = "Claude API unavailable"
+        # remaining jobs stay at keyword-only final_score
+        scored = jobs
+    else:
+        scored = jobs
 
     # When no API key, AI scoring is skipped so keyword scores are naturally lower.
     # Use a lower threshold (25% best / 15% good) to surface relevant jobs.
