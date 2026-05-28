@@ -35,6 +35,7 @@ from resume_tailor import (
 )
 from email_sender import send_application_email
 from application_tracker import log_application, get_already_contacted
+from gdrive_uploader import upload_documents
 
 
 # ── Telegram formatter ────────────────────────────────────────────────────────
@@ -77,6 +78,8 @@ def format_job_alert(best_fits, good_fits, stats):
             email_status = job.get("_email_status", "")
             if email_status:
                 lines.append(f"   Email: {email_status}")
+            if job.get("_resume_drive_link"):
+                lines.append(f"   Drive: {job['_resume_drive_link']}")
             lines.append(f"   Apply: {job['url']}")
             if job.get("easy_apply"):
                 lines.append("   [Easy Apply available]")
@@ -162,7 +165,13 @@ def run_outreach(job, already_contacted):
             f"Best regards,\nAman Sharma"
         )
 
-    # 6. Send email (only if Gmail is configured)
+    # 6. Upload to Google Drive
+    print(f"   [Drive] Uploading documents for {company}...")
+    resume_link, cl_link = upload_documents(company, resume_path, cl_path)
+    job["_resume_drive_link"]  = resume_link or ""
+    job["_cl_drive_link"]      = cl_link or ""
+
+    # 7. Send email (only if Gmail is configured)
     if GMAIL_ADDRESS and GMAIL_APP_PASSWORD:
         success, msg = send_application_email(
             to_email=hr_email,
@@ -180,8 +189,9 @@ def run_outreach(job, already_contacted):
 
     job["_email_status"] = email_status
 
-    # 7. Log to Excel
-    log_application(job, hr_info, hr_email, confidence, email_status, resume_path or "")
+    # 8. Log to Excel
+    log_application(job, hr_info, hr_email, confidence, email_status, resume_path or "",
+                    resume_link or "", cl_link or "")
 
     return success
 

@@ -1,7 +1,8 @@
 """
 Application Tracker — logs every outreach to an Excel file.
 Columns: Date | Company | Role | Location | AI Score | HR Name | HR Title |
-         HR Email | Email Confidence | Email Status | Apply URL | Resume File
+         HR Email | Email Confidence | Email Status | Apply URL | Resume File |
+         Resume Drive Link | Cover Letter Drive Link
 """
 
 import os
@@ -25,13 +26,15 @@ HEADERS = [
     "Email Status",
     "Apply URL",
     "Resume File",
+    "Resume (Drive)",
+    "Cover Letter (Drive)",
 ]
 
 _HEADER_FILL  = PatternFill("solid", fgColor="1F4E79")
 _HEADER_FONT  = Font(bold=True, color="FFFFFF", size=11)
 _ALT_FILL     = PatternFill("solid", fgColor="D6E4F0")
 
-COL_WIDTHS = [14, 22, 35, 18, 12, 22, 30, 36, 16, 14, 55, 45]
+COL_WIDTHS = [14, 22, 35, 18, 12, 22, 30, 36, 16, 14, 55, 45, 45, 45]
 
 
 def _init_workbook():
@@ -51,7 +54,8 @@ def _init_workbook():
     return wb, ws
 
 
-def log_application(job, hr_info, hr_email, email_confidence, email_status, resume_file=""):
+def log_application(job, hr_info, hr_email, email_confidence, email_status,
+                    resume_file="", resume_drive_link="", cl_drive_link=""):
     """
     Append one row to the application log Excel file.
     Creates the file if it doesn't exist.
@@ -80,6 +84,8 @@ def log_application(job, hr_info, hr_email, email_confidence, email_status, resu
         email_status,
         job.get("url", ""),
         os.path.basename(resume_file) if resume_file else "",
+        resume_drive_link or "",
+        cl_drive_link or "",
     ]
 
     for col, val in enumerate(values, start=1):
@@ -93,6 +99,14 @@ def log_application(job, hr_info, hr_email, email_confidence, email_status, resu
     if url:
         ws.cell(row=next_row, column=11).hyperlink = url
         ws.cell(row=next_row, column=11).font = Font(color="0563C1", underline="single")
+
+    # Hyperlinks on Drive columns (col 13, 14)
+    if resume_drive_link:
+        ws.cell(row=next_row, column=13).hyperlink = resume_drive_link
+        ws.cell(row=next_row, column=13).font = Font(color="0563C1", underline="single")
+    if cl_drive_link:
+        ws.cell(row=next_row, column=14).hyperlink = cl_drive_link
+        ws.cell(row=next_row, column=14).font = Font(color="0563C1", underline="single")
 
     wb.save(LOG_FILE)
     return LOG_FILE
