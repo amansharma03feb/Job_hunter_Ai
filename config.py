@@ -6,10 +6,19 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # --- API Keys ---
-APIFY_TOKEN = os.getenv("APIFY_TOKEN", "")
+APIFY_TOKEN        = os.getenv("APIFY_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "959971760")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "959971760")
+ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
+GMAIL_ADDRESS      = os.getenv("GMAIL_ADDRESS", "")
+GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
+HUNTER_API_KEY     = os.getenv("HUNTER_API_KEY", "")   # optional — 25 free/month
+
+# --- Sender identity ---
+SENDER_NAME = "Aman Sharma"
+
+# --- Outreach limits (cost + spam control) ---
+MAX_EMAILS_PER_RUN = 5   # max cold emails per daily run
 
 # --- Apify Config ---
 APIFY_BASE_URL = "https://api.apify.com/v2"
@@ -112,7 +121,7 @@ SKILL_WEIGHTS = {
     },
 }
 
-# --- Resume for Claude API matching ---
+# --- Resume summary (for ATS scoring) ---
 RESUME_SUMMARY = """
 AMAN SHARMA — Senior Business Analyst | AI & Data Platforms | Healthcare Data & MDM
 
@@ -141,4 +150,67 @@ CSPO, BRD/FRD/SRS, UML, Stakeholder Management
 
 EDUCATION: MBA Business Analytics (D.Y. Patil), B.Tech CS (MDU Rohtak)
 CERTIFICATIONS: CSPO (Scrum Alliance), Agile & Scrum, DevOps Basics, Google Analytics, Tableau
+"""
+
+# --- Full resume text (for tailoring + cover letter generation) ---
+RESUME_FULL = """
+AMAN SHARMA
+Email: amansharma03feb@gmail.com | LinkedIn: linkedin.com/in/amansharma03feb
+Location: India (open to relocate: Ireland / UK / EU)
+
+PROFESSIONAL SUMMARY
+Senior Business Analyst with 6+ years of experience delivering healthcare data platforms,
+AI-enabled products, and enterprise ETL/MDM solutions. Proven track record bridging business
+and engineering teams across US healthcare, fintech, logistics, and SaaS domains.
+Seeking Senior BA / Technical Product Owner roles in Ireland, UK, or global India teams with travel exposure.
+
+EXPERIENCE
+
+Senior Business Analyst — CloudAngles (May 2024 – Present)
+Client: Fortune-class US Health Insurance Company
+- Designed and owned Member Identity Resolution & MDM platform: golden record architecture
+  using deterministic + probabilistic matching across claims, wellness, broker, rewards, and biometrics data
+- Architected dual-mode ETL ingestion pipeline: Kafka (real-time streaming) + Airflow (batch) on AWS;
+  delivered 50% reduction in data processing time
+- Authored REST API payload contracts for 8+ plugin integrations with downstream client systems;
+  coordinated on-schedule delivery across 3 time zones
+- Governed Snowflake data structures, data contracts, and multi-tenant table design;
+  enabled Power BI, MicroStrategy, and Tableau reporting layers
+- Built Lambda-triggered outbound reporting: S3/SFTP delivery with multi-client bursting logic
+- Resolved 79 Data Processing Incidents (DPIs) and 5 Priority Incidents (PIs) maintaining 99.8% SLA
+- Received back-to-back 5-star client ratings; promoted twice within six months
+
+Business Analyst — Algoworks (Jan 2023 – Apr 2024)
+- Led AI chatbot delivery for enterprise client; designed role-based prompt engineering framework
+  reducing average handle time by 35%
+- Delivered WMS migration from .NET WinForms to XAML for Fortune 500 retail client;
+  98% on-time sprint delivery across 12 sprints
+- Produced BRDs, FRDs, SRS documents, and UML diagrams for 4 concurrent product streams
+
+Business Analyst — AdCuratio Media (Jun 2021 – Dec 2022)
+- Built requirements and delivery for multi-channel SaaS ad platform integrating demographic data APIs
+- Managed stakeholder alignment across product, engineering, and sales for 3 major feature releases
+
+Business Analyst — Aavas Financiers (Jul 2019 – May 2021)
+- Automated credit underwriting workflow; drove 40% boost in digital adoption
+- Led B2C mobile app launch end-to-end; contributed to 40% revenue growth in digital channel
+
+EDUCATION
+MBA — Business Analytics, D.Y. Patil University (2019)
+B.Tech — Computer Science, MDU Rohtak (2017)
+
+CERTIFICATIONS
+- Certified Scrum Product Owner (CSPO) — Scrum Alliance
+- Agile & Scrum Professional
+- Google Analytics Certified
+- Tableau Desktop Specialist
+- DevOps Basics
+
+SKILLS
+Domain:      Healthcare Data, MDM, Identity Resolution, HIPAA/PHI, Claims Processing, Fintech
+Data & ETL:  AWS (Kafka, Airflow, Lambda, S3), Snowflake, ETL Pipelines, Data Governance
+BA Tools:    BRD/FRD/SRS, User Stories, Agile/Scrum, UAT, Gap Analysis, Process Mapping, UML
+Reporting:   Power BI, Tableau, MicroStrategy, SQL, Excel
+Integration: REST API, JSON, SFTP, Microservices, Data Contracts
+AI:          Prompt Engineering, Generative AI, LLM workflows, Chatbot delivery
 """
