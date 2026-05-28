@@ -22,7 +22,7 @@ GDRIVE_SERVICE_ACCOUNT_JSON   = os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "")  # 
 SENDER_NAME = "Aman Sharma"
 
 # --- Outreach limits (cost + spam control) ---
-MAX_EMAILS_PER_RUN = 5   # max cold emails per daily run
+MAX_EMAILS_PER_RUN = 20  # max cold emails per daily run
 
 # --- Apify Config ---
 APIFY_BASE_URL = "https://api.apify.com/v2"

@@ -40,7 +40,7 @@ Automate the full job application funnel from discovery → outreach → trackin
 | Daily jobs scraped (Ireland + UK + India) | ≥ 80 |
 | Ghost posting removal rate | 100% before scoring |
 | AI scoring accuracy (BEST FIT relevance) | ≥ 85% |
-| Cold emails sent per day (capped) | ≤ 5 |
+| Cold emails sent per day (capped) | ≤ 20 |
 | Resume tailoring time per role | < 30 seconds |
 | Time to Telegram delivery after scrape | < 10 minutes |
 | Duplicate outreach prevention | 100% |
@@ -176,7 +176,7 @@ Stage 5: DELIVER
 - **F8.1** Send via Gmail SMTP SSL (port 465)
 - **F8.2** Attach tailored resume + cover letter as DOCX
 - **F8.3** Use Claude-drafted personalised subject + body
-- **F8.4** Cap at `MAX_EMAILS_PER_RUN = 5` per day
+- **F8.4** Cap at `MAX_EMAILS_PER_RUN = 20` per day
 - **F8.5** Deduplication: never re-email same company + role
 - **F8.6** Log send status (sent / failed reason) to Excel
 
@@ -206,7 +206,7 @@ Stage 5: DELIVER
 | **Reliability** | Each stage fails gracefully; pipeline continues to Telegram delivery |
 | **Deduplication** | Excel tracker prevents re-contacting same company+role |
 | **Rate limiting** | 3-second delay between outreach actions |
-| **Spam protection** | Max 5 cold emails per day; Gmail App Password only |
+| **Spam protection** | Max 20 cold emails per day; Gmail App Password only |
 
 ---
 
