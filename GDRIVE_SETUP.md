@@ -1,13 +1,12 @@
 # Google Drive Setup Guide
 
-One-time setup to allow the AI Job Hunter pipeline to upload resumes and cover letters
-into your shared Drive folder automatically.
+One-time setup so the pipeline uploads resumes and cover letters to your
+Google Drive as **your own Gmail account** (files count against your storage,
+not a service account with zero quota).
 
 ---
 
 ## What you'll end up with
-
-Each time the pipeline runs outreach for a BEST FIT job, it will create:
 
 ```
 Aman- AI resumes/          ← your shared folder
@@ -18,87 +17,65 @@ Aman- AI resumes/          ← your shared folder
 
 ---
 
-## Step 1 — Create a Google Cloud Project
+## Step 1 — Enable the Drive API (if not already done)
 
 1. Go to https://console.cloud.google.com/
-2. Click **Select a project → New Project**
-3. Name it `job-hunter-ai` (or anything you like)
-4. Click **Create**
+2. Select your project: **job-hunter-ai-497720**
+3. Go to **APIs & Services → Library** → search **Google Drive API** → Enable
 
 ---
 
-## Step 2 — Enable the Google Drive API
-
-1. In your project, go to **APIs & Services → Library**
-2. Search for **Google Drive API**
-3. Click **Enable**
-
----
-
-## Step 3 — Create a Service Account
+## Step 2 — Create an OAuth Desktop Client
 
 1. Go to **APIs & Services → Credentials**
-2. Click **+ Create Credentials → Service Account**
-3. Name: `job-hunter-uploader`
-4. Click **Create and Continue** (no special roles needed)
-5. Click **Done**
+2. Click **+ Create Credentials → OAuth client ID**
+3. **Application type:** Desktop app
+4. **Name:** `job-hunter-local`
+5. Click **Create**
+6. Click **Download JSON** on the popup
+7. Rename the downloaded file to `oauth_client.json`
+8. Move it into your project folder: `C:\Users\Dell\Documents\job-hunter-ai\`
+
+> ⚠️ `oauth_client.json` is in `.gitignore` — it will never be committed.
 
 ---
 
-## Step 4 — Download the JSON Key
+## Step 3 — Run the one-time auth script
 
-1. On the Credentials page, click the service account you just created
-2. Go to the **Keys** tab
-3. Click **Add Key → Create new key → JSON**
-4. Save the downloaded `.json` file somewhere safe (e.g., `service_account.json`)
-
-> ⚠️ **Never commit this file to Git.** It is already in `.gitignore`.
-
----
-
-## Step 5 — Share your Drive folder with the service account
-
-1. Open https://drive.google.com/drive/u/0/folders/1zOujN0Iq05l4Ld1AjUo-SU9hCGYJNPgp
-2. Click the **⋮ menu → Share**
-3. In the "Add people" box, paste the service account **email** from the JSON file
-   (looks like `job-hunter-uploader@your-project.iam.gserviceaccount.com`)
-4. Set permission to **Editor**
-5. Click **Share**
-
----
-
-## Step 6 — Encode the JSON key as base64
-
-**On Linux/Mac:**
 ```bash
-base64 -w 0 service_account.json
+python gdrive_auth.py
 ```
 
-**On Windows (PowerShell):**
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("service_account.json"))
-```
+- Your browser opens → sign in with **amansharma03feb@gmail.com**
+- Allow Drive access
+- The script prints three lines like:
 
-Copy the entire output (one long string — no line breaks).
+```
+GDRIVE_CLIENT_ID=123456789-abc.apps.googleusercontent.com
+GDRIVE_CLIENT_SECRET=GOCSPX-xxxxx
+GDRIVE_REFRESH_TOKEN=1//0gxxxxxxxxxxxxxxx
+```
 
 ---
 
-## Step 7 — Add to your .env / GitHub Secrets
+## Step 4 — Add to .env and GitHub Secrets
 
 **.env (local runs):**
 ```
-GDRIVE_SERVICE_ACCOUNT_JSON=<paste base64 string here>
-GDRIVE_FOLDER_ID=1zOujN0Iq05l4Ld1AjUo-SU9hCGYJNPgp
+GDRIVE_CLIENT_ID=<paste here>
+GDRIVE_CLIENT_SECRET=<paste here>
+GDRIVE_REFRESH_TOKEN=<paste here>
 ```
 
-**GitHub Actions Secrets (for automated runs):**
-- Go to your repo → Settings → Secrets and variables → Actions
-- Add `GDRIVE_SERVICE_ACCOUNT_JSON` with the base64 string
-- `GDRIVE_FOLDER_ID` is already hard-coded as the default in `config.py`
+**GitHub Actions Secrets** (repo → Settings → Secrets → Actions):
+- `GDRIVE_CLIENT_ID`
+- `GDRIVE_CLIENT_SECRET`
+- `GDRIVE_REFRESH_TOKEN`
 
 ---
 
 ## That's it!
 
-On the next pipeline run, documents will appear in your Drive folder automatically.
-The Excel log will include clickable Drive links for each uploaded file.
+Files will upload to your Drive on every outreach run.
+The Excel log will have clickable Drive links for each file.
+The `oauth_client.json` file stays local — never committed, never shared.

@@ -14,9 +14,11 @@ GMAIL_ADDRESS      = os.getenv("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 HUNTER_API_KEY     = os.getenv("HUNTER_API_KEY", "")   # optional — 25 free/month
 
-# --- Google Drive ---
-GDRIVE_FOLDER_ID              = os.getenv("GDRIVE_FOLDER_ID", "1zOujN0Iq05l4Ld1AjUo-SU9hCGYJNPgp")
-GDRIVE_SERVICE_ACCOUNT_JSON   = os.getenv("GDRIVE_SERVICE_ACCOUNT_JSON", "")  # base64-encoded SA JSON
+# --- Google Drive (OAuth2 — files owned by your Gmail, uses your storage) ---
+GDRIVE_FOLDER_ID       = os.getenv("GDRIVE_FOLDER_ID", "1zOujN0Iq05l4Ld1AjUo-SU9hCGYJNPgp")
+GDRIVE_CLIENT_ID       = os.getenv("GDRIVE_CLIENT_ID", "")
+GDRIVE_CLIENT_SECRET   = os.getenv("GDRIVE_CLIENT_SECRET", "")
+GDRIVE_REFRESH_TOKEN   = os.getenv("GDRIVE_REFRESH_TOKEN", "")
 
 # --- Sender identity ---
 SENDER_NAME = "Aman Sharma"

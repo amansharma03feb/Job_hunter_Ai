@@ -4,6 +4,7 @@ secrets.json
 service_account.json
 *_service_account.json
 *.credentials.json
+oauth_client.json
 
 # Python
 __pycache__/
