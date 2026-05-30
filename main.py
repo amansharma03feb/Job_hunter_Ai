@@ -264,10 +264,22 @@ def run_pipeline():
     # Stage 1: Scrape all sources
     print("\n[Stage 1/5] SCRAPE — LinkedIn + Indeed + Naukri + RemoteOK")
 
-    linkedin_jobs = scrape_linkedin_jobs()
-    indeed_jobs   = scrape_indeed_jobs()
-    naukri_jobs   = scrape_naukri_jobs()
-    remote_jobs   = scrape_remote_jobs()
+    try:
+        linkedin_jobs = scrape_linkedin_jobs()
+    except Exception as e:
+        print(f"[LinkedIn] Scraper failed: {e}"); linkedin_jobs = []
+    try:
+        indeed_jobs = scrape_indeed_jobs()
+    except Exception as e:
+        print(f"[Indeed] Scraper failed: {e}"); indeed_jobs = []
+    try:
+        naukri_jobs = scrape_naukri_jobs()
+    except Exception as e:
+        print(f"[Naukri] Scraper failed: {e}"); naukri_jobs = []
+    try:
+        remote_jobs = scrape_remote_jobs()
+    except Exception as e:
+        print(f"[Remote] Scraper failed: {e}"); remote_jobs = []
 
     # Merge and deduplicate across all sources by job_id
     seen_ids = set()
@@ -343,7 +355,10 @@ def run_pipeline():
         resp = send_message(chunk)
 
     if resp.get("ok"):
-        print(f"\n[Pipeline] Telegram delivered (msg_id: {resp['result']['message_id']})")
+        msg_id = resp.get("result", {}).get("message_id", "?")
+        print(f"\n[Pipeline] Telegram delivered (msg_id: {msg_id})")
+    else:
+        print(f"\n[Pipeline] Telegram response: {resp}")
 
     print("\n" + "=" * 60)
     print("PIPELINE SUMMARY")
@@ -362,4 +377,20 @@ def run_pipeline():
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    try:
+        run_pipeline()
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"\n[FATAL] Pipeline crashed:\n{tb}")
+        # Always notify Telegram even on hard crash
+        try:
+            from datetime import datetime
+            send_message(
+                f"AI Job Hunter ERROR — {datetime.now().strftime('%d %b %Y %H:%M')}\n\n"
+                f"Pipeline crashed:\n{str(e)}\n\n"
+                f"Check GitHub Actions logs for full traceback."
+            )
+        except Exception:
+            pass
+        raise  # re-raise so GitHub Actions sees exit code 1
