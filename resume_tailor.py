@@ -1,231 +1,142 @@
 """
-Resume Tailor — uses Claude API to:
-  1. Tailor resume bullet points to match a JD
-  2. Generate a personalised cover letter
-  3. Save both as .docx files
+Resume & Outreach Builder — no Claude API calls, zero tailoring cost.
+
+Generates:
+  - Base resume DOCX (from RESUME_FULL in config)
+  - Template cover letter DOCX
+  - Template email subject + body
+
+This replaces Claude-based tailoring to save API credits.
+Claude is only used for ATS scoring (already capped at 15 calls/run).
 """
 
 import os
 import re
-import json
-import requests
 from datetime import datetime
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from config import ANTHROPIC_API_KEY, RESUME_FULL, SENDER_NAME
+from config import RESUME_FULL, SENDER_NAME
 
-OUTPUT_DIR = "output"
+OUTPUT_DIR  = "output"
 RESUMES_DIR = os.path.join(OUTPUT_DIR, "resumes")
 CL_DIR      = os.path.join(OUTPUT_DIR, "cover_letters")
 
 
-# ── Claude API helper ─────────────────────────────────────────────────────────
-
-def _claude(prompt, max_tokens=1500):
-    if not ANTHROPIC_API_KEY:
-        return None
-    try:
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": ANTHROPIC_API_KEY,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": max_tokens,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            timeout=45,
-        )
-        resp.raise_for_status()
-        text = resp.json()["content"][0]["text"].strip()
-        # Strip markdown fences if present
-        if text.startswith("```"):
-            text = text.split("```", 2)[1]
-            text = text[text.find("\n")+1:].strip() if "\n" in text else text[4:].strip()
-        return text
-    except Exception as e:
-        print(f"[Tailor] Claude error: {e}")
-        return None
-
-
-# ── Tailored Resume ───────────────────────────────────────────────────────────
-
-RESUME_PROMPT = """You are a senior career coach and resume writer.
-
-TASK: Tailor the candidate's resume for the specific job below.
-- Keep the same structure (sections, companies, dates)
-- Rewrite/reorder bullet points to match the JD keywords and requirements
-- Add/highlight skills the JD asks for that the candidate has
-- Keep it truthful — do not invent experience
-- Output ONLY the tailored resume text, no commentary
-
-CANDIDATE RESUME:
-{resume}
-
-JOB TITLE: {job_title}
-COMPANY: {company}
-JOB DESCRIPTION:
-{jd}
-
-Output the tailored resume as plain text with clear section headers."""
-
-
-def tailor_resume_text(job_title, company, jd_text):
-    prompt = RESUME_PROMPT.format(
-        resume=RESUME_FULL,
-        job_title=job_title,
-        company=company,
-        jd=jd_text[:3000],
-    )
-    return _claude(prompt, max_tokens=2000)
-
-
-# ── Cover Letter ──────────────────────────────────────────────────────────────
-
-CL_PROMPT = """You are an expert cover letter writer for tech/data roles.
-
-Write a concise, compelling cover letter (3 paragraphs, max 250 words):
-- Para 1: Hook — why THIS role at THIS company excites the candidate
-- Para 2: 2-3 specific achievements from the resume that match the JD
-- Para 3: Forward-looking close with call to action
-
-Tone: professional but human. No generic filler. No "I am writing to apply for…"
-
-CANDIDATE: {name}
-JOB TITLE: {job_title}
-COMPANY: {company}
-HR NAME: {hr_name}
-JOB DESCRIPTION:
-{jd}
-
-CANDIDATE RESUME SUMMARY:
-{resume}
-
-Output ONLY the cover letter body text (no subject line, no address block)."""
-
-
-def generate_cover_letter(job_title, company, hr_name, jd_text):
-    hr_greeting = hr_name.split()[0] if hr_name else "Hiring Manager"
-    prompt = CL_PROMPT.format(
-        name=SENDER_NAME,
-        job_title=job_title,
-        company=company,
-        hr_name=hr_greeting,
-        jd=jd_text[:3000],
-        resume=RESUME_FULL[:1500],
-    )
-    return _claude(prompt, max_tokens=600)
-
-
-# ── Email Draft ───────────────────────────────────────────────────────────────
-
-EMAIL_PROMPT = """Write a short, personalized job application email (150 words max).
-
-- Subject line on first line prefixed with "Subject: "
-- Then blank line, then the email body
-- Address the HR by first name
-- One line about why this specific role/company
-- One line referencing a concrete achievement
-- End with clear CTA (resume + cover letter attached)
-
-HR FIRST NAME: {hr_first}
-JOB TITLE: {job_title}
-COMPANY: {company}
-SENDER: {name}
-
-SENDER BACKGROUND (2 lines): Senior BA, 6+ yrs healthcare data/MDM/AI on AWS.
-Led MDM golden-record platform for a Fortune-class US health insurer;
-Kafka+Airflow ETL cut processing time 50%; CSPO certified.
-
-Output ONLY the subject line + email body."""
-
-
-def draft_email(job_title, company, hr_first_name):
-    prompt = EMAIL_PROMPT.format(
-        hr_first=hr_first_name or "Hiring Manager",
-        job_title=job_title,
-        company=company,
-        name=SENDER_NAME,
-    )
-    result = _claude(prompt, max_tokens=400)
-    if not result:
-        return None, None
-    lines = result.strip().split("\n", 2)
-    subject = ""
-    body = result
-    for i, line in enumerate(lines):
-        if line.lower().startswith("subject:"):
-            subject = line[8:].strip()
-            body = "\n".join(lines[i+1:]).strip()
-            break
-    return subject, body
-
-
-# ── DOCX helpers ──────────────────────────────────────────────────────────────
-
 def _safe_filename(s):
-    return re.sub(r"[^a-zA-Z0-9_\-]", "_", s)[:40]
+    return re.sub(r"[^a-zA-Z0-9_\-]", "_", str(s or ""))[:40]
 
+
+# ── Base resume DOCX (no Claude) ──────────────────────────────────────────────
 
 def save_resume_docx(resume_text, job_title, company):
+    """Save RESUME_FULL as a formatted DOCX. resume_text param ignored (use base)."""
     os.makedirs(RESUMES_DIR, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
     fname = f"Aman_Sharma_Resume_{_safe_filename(job_title)}_{_safe_filename(company)}_{date_str}.docx"
     path = os.path.join(RESUMES_DIR, fname)
 
     doc = Document()
-    # Title
+    # Name header
     title_para = doc.add_paragraph()
     title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = title_para.add_run(SENDER_NAME)
     run.bold = True
     run.font.size = Pt(16)
 
-    doc.add_paragraph("amansharma03feb@gmail.com  |  LinkedIn: linkedin.com/in/amansharma03feb")
+    contact = doc.add_paragraph()
+    contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    contact.add_run("amansharma03feb@gmail.com  |  linkedin.com/in/amansharma03feb  |  India (open to relocate: Ireland/UK/EU)")
 
-    doc.add_paragraph()  # spacer
+    doc.add_paragraph()
 
-    for line in (resume_text or "").split("\n"):
+    for line in RESUME_FULL.strip().split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            doc.add_paragraph()
+            continue
         p = doc.add_paragraph()
-        if line.strip().isupper() or line.strip().endswith(":"):
-            run = p.add_run(line.strip())
-            run.bold = True
+        if stripped.isupper() or (stripped.endswith(":") and len(stripped) < 40):
+            r = p.add_run(stripped)
+            r.bold = True
         else:
-            p.add_run(line)
+            p.add_run(stripped)
 
     doc.save(path)
     return path
 
 
+# ── Template cover letter DOCX (no Claude) ────────────────────────────────────
+
 def save_cover_letter_docx(cl_text, job_title, company, hr_name):
+    """Generate a template cover letter DOCX. cl_text param ignored (use template)."""
     os.makedirs(CL_DIR, exist_ok=True)
     date_str = datetime.now().strftime("%Y%m%d")
     fname = f"CoverLetter_{_safe_filename(job_title)}_{_safe_filename(company)}_{date_str}.docx"
     path = os.path.join(CL_DIR, fname)
 
+    greeting_name = str(hr_name or "").split()[0] if hr_name else "Hiring Manager"
+
+    body = f"""Dear {greeting_name},
+
+I am writing to express my strong interest in the {job_title} position at {company}.
+
+With 6+ years of experience delivering healthcare data platforms, AI-enabled products, and enterprise ETL/MDM solutions, I bring a proven track record across US healthcare, fintech, and SaaS domains. At CloudAngles, I designed and owned a Member Identity Resolution & MDM platform for a Fortune-class US health insurer — architecting dual-mode ingestion via Kafka (real-time) and Airflow (batch) on AWS, cutting data processing time by 50%, and governing Snowflake data structures for Power BI, MicroStrategy, and Tableau reporting layers.
+
+I am actively seeking Senior BA / Technical Product Owner roles in Ireland, UK, and global teams with travel exposure, with a relocation timeline of July 2026. I believe my background closely aligns with what {company} is looking for, and I would welcome the opportunity to discuss how I can contribute to your team.
+
+Please find my resume attached. I look forward to hearing from you.
+
+Warm regards,
+Aman Sharma
+Senior Business Analyst
+amansharma03feb@gmail.com
+LinkedIn: linkedin.com/in/amansharma03feb"""
+
     doc = Document()
-    # Header
     h = doc.add_paragraph()
     h.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     h.add_run(f"{SENDER_NAME}\namansharma03feb@gmail.com\n{datetime.now().strftime('%d %B %Y')}")
-
     doc.add_paragraph()
 
-    greeting = f"Dear {hr_name.split()[0]}," if hr_name else "Dear Hiring Manager,"
-    doc.add_paragraph(greeting)
-    doc.add_paragraph()
-
-    for para in (cl_text or "").split("\n\n"):
+    for para in body.strip().split("\n\n"):
         if para.strip():
             doc.add_paragraph(para.strip())
 
-    doc.add_paragraph()
-    doc.add_paragraph("Warm regards,")
-    doc.add_paragraph(SENDER_NAME)
-
     doc.save(path)
     return path
+
+
+# ── Template email (no Claude) ────────────────────────────────────────────────
+
+def draft_email(job_title, company, hr_first_name):
+    """Return (subject, body) using a fixed template. Zero Claude cost."""
+    first = str(hr_first_name or "").strip() or "Hiring Manager"
+
+    subject = f"Application: {job_title} — Aman Sharma, Senior BA"
+
+    body = f"""Dear {first},
+
+I came across the {job_title} opening at {company} and would love to be considered.
+
+I'm a Senior Business Analyst with 6+ years in healthcare data (MDM, Kafka/Airflow ETL, Snowflake, HIPAA) and AI/LLM delivery. I recently led the Member Identity Resolution platform for a Fortune-class US health insurer and have delivered multiple 5-star client engagements. I hold a CSPO certification and am actively targeting Ireland, UK, and global roles with a July 2026 relocation timeline.
+
+My tailored resume and cover letter are attached. Happy to connect for a quick call.
+
+Best regards,
+Aman Sharma
+amansharma03feb@gmail.com | linkedin.com/in/amansharma03feb"""
+
+    return subject, body
+
+
+# ── Kept for backward compatibility — not used ─────────────────────────────────
+
+def tailor_resume_text(job_title, company, jd_text):
+    """No-op — base resume used instead of Claude tailoring."""
+    return None
+
+
+def generate_cover_letter(job_title, company, hr_name, jd_text):
+    """No-op — template cover letter used instead of Claude generation."""
+    return None

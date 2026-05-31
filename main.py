@@ -18,6 +18,7 @@ Stages:
   5. DELIVER      — Telegram: BEST + GOOD FIT alerts + apply links
 """
 
+import re
 import time
 from datetime import datetime
 
@@ -33,15 +34,8 @@ from remote_scraper import scrape_remote_jobs
 from portal_verifier import verify_jobs
 from ats_matcher import filter_best_fits
 from telegram_sender import send_message
-from hr_finder import (
-    extract_hr_info, guess_company_domain,
-    build_email_patterns, find_agency_contact, build_generic_patterns,
-)
-from email_finder import find_best_email
-from resume_tailor import (
-    tailor_resume_text, generate_cover_letter, draft_email,
-    save_resume_docx, save_cover_letter_docx,
-)
+from hr_finder import extract_hr_info, guess_company_domain
+from resume_tailor import draft_email, save_resume_docx, save_cover_letter_docx
 from gdrive_uploader import upload_documents
 from email_sender import send_application_email
 from application_tracker import log_application, get_already_contacted
@@ -153,44 +147,19 @@ def run_outreach(job, already_contacted):
     # 3. Find email
     hr_email, confidence = None, None
 
-    if hr_info["first_name"] and hr_info["last_name"]:
-        # Named poster — use pattern matching
-        patterns = build_email_patterns(hr_info["first_name"], hr_info["last_name"], domain)
-        hr_email, confidence = find_best_email(
-            hr_info["first_name"], hr_info["last_name"], domain, patterns
-        )
-
-    if not hr_email:
-        # No named poster or pattern matching failed → agency fallback
-        print(f"   [HR] No named poster — trying agency/domain contact for {company}...")
-        agency_info = find_agency_contact(company, domain)
-
-        if agency_info and agency_info.get("email"):
-            # Hunter.io found a real person at the company
-            hr_email   = agency_info["email"]
-            confidence = agency_info.get("source", "hunter_domain")
-            # Merge into hr_info for logging
-            hr_info.update({
-                "full_name":  agency_info["full_name"],
-                "first_name": agency_info["first_name"],
-                "last_name":  agency_info["last_name"],
-                "title":      agency_info["title"],
-            })
-            job["_hr_info"] = hr_info
-            print(f"   [HR] Agency contact found: {hr_email} ({confidence})")
-        else:
-            # Last resort — generic alias patterns
-            generic = build_generic_patterns(domain)
-            if generic:
-                hr_email, confidence = generic[0][0], "generic_alias"
-                hr_info.update({
-                    "full_name":  "Hiring Team",
-                    "first_name": "Hiring",
-                    "last_name":  "Team",
-                    "title":      "Recruitment",
-                })
-                job["_hr_info"] = hr_info
-                print(f"   [HR] Using generic alias: {hr_email}")
+    if hr_info["first_name"] and hr_info["last_name"] and domain:
+        # Named poster from LinkedIn — build firstname.lastname@domain directly
+        f = re.sub(r"[^a-z]", "", hr_info["first_name"].lower())
+        l = re.sub(r"[^a-z]", "", hr_info["last_name"].lower())
+        hr_email, confidence = f"{f}.{l}@{domain}", "pattern"
+        print(f"   [Email] Pattern: {hr_email}")
+    elif domain:
+        # No named poster — use careers@ alias
+        hr_email, confidence = f"careers@{domain}", "generic_alias"
+        hr_info.update({"full_name": "Hiring Team", "first_name": "Hiring",
+                        "last_name": "Team", "title": "Recruitment"})
+        job["_hr_info"] = hr_info
+        print(f"   [Email] Generic alias: {hr_email}")
 
     if not hr_email:
         print(f"   [Email] Could not find any contact for {company}")
@@ -200,27 +169,14 @@ def run_outreach(job, already_contacted):
 
     print(f"   [Email] {hr_email} (confidence: {confidence})")
 
-    # 4. Tailor resume
-    print(f"   [Resume] Tailoring for {title} @ {company}...")
-    tailored    = tailor_resume_text(title, company, jd_text)
-    resume_path = save_resume_docx(tailored or "", title, company) if tailored else None
+    # 4. Save base resume (no Claude — template only)
+    resume_path = save_resume_docx("", title, company)
 
-    # 5. Cover letter
-    print(f"   [CL] Generating cover letter...")
-    cl_text  = generate_cover_letter(title, company, hr_info["full_name"], jd_text)
-    cl_path  = save_cover_letter_docx(cl_text or "", title, company, hr_info["full_name"]) if cl_text else None
+    # 5. Save template cover letter (no Claude)
+    cl_path = save_cover_letter_docx("", title, company, hr_info["full_name"])
 
-    # 6. Draft email
-    print(f"   [Draft] Writing email...")
+    # 6. Template email (no Claude)
     subject, body = draft_email(title, company, hr_info["first_name"])
-    if not subject or not body:
-        subject = f"Application: {title} — Aman Sharma"
-        body = (
-            f"Dear {hr_info['first_name'] or 'Hiring Manager'},\n\n"
-            f"I'm applying for the {title} role at {company}. "
-            f"Please find my tailored resume and cover letter attached.\n\n"
-            f"Best regards,\nAman Sharma"
-        )
 
     # 7. Upload to Google Drive
     print(f"   [Drive] Uploading documents for {company}...")
