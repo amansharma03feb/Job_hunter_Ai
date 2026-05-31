@@ -26,11 +26,11 @@ SENDER_NAME = "Aman Sharma"
 # --- Outreach limits (cost + spam control) ---
 MAX_EMAILS_PER_RUN = 20  # max cold emails per daily run
 
-# --- Job source toggles (set False to disable a source) ---
+# --- Job source toggles ---
 ENABLE_LINKEDIN = True
-ENABLE_INDEED   = True
-ENABLE_NAUKRI   = True
-ENABLE_REMOTE   = True
+ENABLE_INDEED   = False   # slow (Apify polling per query) — re-enable later
+ENABLE_NAUKRI   = False   # slow (Apify polling per query) — re-enable later
+ENABLE_REMOTE   = True    # fast (direct free API)
 
 # --- Apify Config ---
 APIFY_BASE_URL = "https://api.apify.com/v2"

@@ -12,7 +12,7 @@ def keyword_score(description):
     if not description:
         return 0, {}, []
 
-    desc = description.lower()
+    desc = str(description or "").lower()
     total_weight = 0
     earned_weight = 0
     matched_cats = {}

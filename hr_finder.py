@@ -145,7 +145,7 @@ def guess_company_domain(company_name, company_linkedin_url=""):
             slug = m.group(1).lower().replace("-", "")
             candidates.append(slug)
 
-    name = company_name.lower()
+    name = str(company_name or "").lower()
     for pattern in _STRIP:
         name = re.sub(pattern, "", name, flags=re.IGNORECASE)
     name_slug = re.sub(r"[^a-z0-9]", "", name)

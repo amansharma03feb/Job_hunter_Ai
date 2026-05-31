@@ -24,6 +24,7 @@ from datetime import datetime
 from config import (
     ATS_THRESHOLD, ANTHROPIC_API_KEY, GMAIL_ADDRESS,
     GMAIL_APP_PASSWORD, MAX_EMAILS_PER_RUN,
+    ENABLE_LINKEDIN, ENABLE_INDEED, ENABLE_NAUKRI, ENABLE_REMOTE,
 )
 from linkedin_scraper import scrape_linkedin_jobs
 from indeed_scraper import scrape_indeed_jobs
@@ -75,12 +76,12 @@ def format_job_alert(best_fits, good_fits, stats):
         lines.append(f"--- BEST FIT (>={best_thr}%) ---")
         lines.append("")
         for i, job in enumerate(best_fits[:8], 1):
-            src = job.get("source", "linkedin").upper()
-            lines.append(f"{i}. [{src}] {job['title']}")
-            lines.append(f"   {job['company']} | {job['location']}")
+            src = str(job.get("source", "linkedin")).upper()
+            lines.append(f"{i}. [{src}] {str(job.get('title',''))}")
+            lines.append(f"   {str(job.get('company',''))} | {str(job.get('location',''))}")
             sal = job.get("salary")
             if sal:
-                lines.append(f"   Salary: {sal}")
+                lines.append(f"   Salary: {str(sal)}")
             lines.append(
                 f"   Score: {job['final_score']}% "
                 f"[KW:{job['keyword_score']}% AI:{job.get('ai_score','N/A')}%]"
@@ -130,9 +131,9 @@ def run_outreach(job, already_contacted):
     Handles both named-poster (LinkedIn) and agency/no-poster jobs.
     Returns email_sent (bool).
     """
-    title   = job.get("title", "")
-    company = job.get("company", "")
-    jd_text = job.get("description", "")
+    title   = str(job.get("title", "") or "")
+    company = str(job.get("company", "") or "")
+    jd_text = str(job.get("description", "") or "")
 
     # Dedup check
     key = f"{company.lower()}|{title.lower()}"
@@ -264,22 +265,27 @@ def run_pipeline():
     # Stage 1: Scrape all sources
     print("\n[Stage 1/5] SCRAPE — LinkedIn + Indeed + Naukri + RemoteOK")
 
-    try:
-        linkedin_jobs = scrape_linkedin_jobs()
-    except Exception as e:
-        print(f"[LinkedIn] Scraper failed: {e}"); linkedin_jobs = []
-    try:
-        indeed_jobs = scrape_indeed_jobs()
-    except Exception as e:
-        print(f"[Indeed] Scraper failed: {e}"); indeed_jobs = []
-    try:
-        naukri_jobs = scrape_naukri_jobs()
-    except Exception as e:
-        print(f"[Naukri] Scraper failed: {e}"); naukri_jobs = []
-    try:
-        remote_jobs = scrape_remote_jobs()
-    except Exception as e:
-        print(f"[Remote] Scraper failed: {e}"); remote_jobs = []
+    linkedin_jobs, indeed_jobs, naukri_jobs, remote_jobs = [], [], [], []
+    if ENABLE_LINKEDIN:
+        try:
+            linkedin_jobs = scrape_linkedin_jobs()
+        except Exception as e:
+            print(f"[LinkedIn] Scraper failed: {e}")
+    if ENABLE_INDEED:
+        try:
+            indeed_jobs = scrape_indeed_jobs()
+        except Exception as e:
+            print(f"[Indeed] Scraper failed: {e}")
+    if ENABLE_NAUKRI:
+        try:
+            naukri_jobs = scrape_naukri_jobs()
+        except Exception as e:
+            print(f"[Naukri] Scraper failed: {e}")
+    if ENABLE_REMOTE:
+        try:
+            remote_jobs = scrape_remote_jobs()
+        except Exception as e:
+            print(f"[Remote] Scraper failed: {e}")
 
     # Merge and deduplicate across all sources by job_id
     seen_ids = set()
