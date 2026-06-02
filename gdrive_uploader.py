@@ -26,7 +26,7 @@ from config import (
     GDRIVE_REFRESH_TOKEN,
 )
 
-MIME_DOCX   = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+MIME_PDF    = "application/pdf"
 MIME_FOLDER = "application/vnd.google-apps.folder"
 
 
@@ -80,7 +80,7 @@ def _upload_file(service, local_path, folder_id):
     from googleapiclient.http import MediaFileUpload
     file_name = os.path.basename(local_path)
     meta = {"name": file_name, "parents": [folder_id]}
-    media = MediaFileUpload(local_path, mimetype=MIME_DOCX, resumable=False)
+    media = MediaFileUpload(local_path, mimetype=MIME_PDF, resumable=False)
     uploaded = service.files().create(
         body=meta, media_body=media, fields="id, webViewLink",
     ).execute()

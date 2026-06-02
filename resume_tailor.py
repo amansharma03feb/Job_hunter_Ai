@@ -1,142 +1,266 @@
 """
-Resume & Outreach Builder — no Claude API calls, zero tailoring cost.
+Resume & Outreach Builder — PDF ONLY (never DOCX).
+
+RULES:
+  - Resume: always send the master PDF (assets/master_resume.pdf)
+  - Cover letter: generated as PDF matching professional format
+  - Email: personalized per JD, attachments are PDF only
+  - Drive: upload PDF only, never Word
 
 Generates:
-  - Base resume DOCX (from RESUME_FULL in config)
-  - Template cover letter DOCX
-  - Template email subject + body
-
-This replaces Claude-based tailoring to save API credits.
-Claude is only used for ATS scoring (already capped at 15 calls/run).
+  - Resume PDF (copy of master resume with company-specific filename)
+  - Cover letter PDF (personalized per company/role)
+  - Email subject + body (personalized per JD)
 """
 
 import os
 import re
+import shutil
 from datetime import datetime
-from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from config import RESUME_FULL, SENDER_NAME
+from fpdf import FPDF
+from config import SENDER_NAME
 
 OUTPUT_DIR  = "output"
 RESUMES_DIR = os.path.join(OUTPUT_DIR, "resumes")
 CL_DIR      = os.path.join(OUTPUT_DIR, "cover_letters")
+MASTER_RESUME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "master_resume.pdf")
 
 
 def _safe_filename(s):
     return re.sub(r"[^a-zA-Z0-9_\-]", "_", str(s or ""))[:40]
 
 
-# ── Base resume DOCX (no Claude) ──────────────────────────────────────────────
+def _sanitize_latin1(text):
+    """Replace Unicode chars that latin-1 can't encode."""
+    replacements = {
+        '–': '-',   # en-dash
+        '—': '-',   # em-dash
+        '‘': "'",   # left single quote
+        '’': "'",   # right single quote
+        '“': '"',   # left double quote
+        '”': '"',   # right double quote
+        '•': '-',   # bullet
+        '▸': '>',   # triangle bullet
+        '…': '...', # ellipsis
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    # Final safety net — drop anything still non-latin1
+    return text.encode('latin-1', errors='replace').decode('latin-1')
 
-def save_resume_docx(resume_text, job_title, company):
-    """Save RESUME_FULL as a formatted DOCX. resume_text param ignored (use base)."""
+
+# ── Resume PDF (master copy) ────────────────────────────────────────────────
+
+def save_resume_pdf(job_title, company):
+    """Copy master resume PDF with company-specific filename.
+    NEVER generates DOCX. Always PDF."""
     os.makedirs(RESUMES_DIR, exist_ok=True)
-    date_str = datetime.now().strftime("%Y%m%d")
-    fname = f"Aman_Sharma_Resume_{_safe_filename(job_title)}_{_safe_filename(company)}_{date_str}.docx"
+    fname = f"Aman_Sharma_Resume_{_safe_filename(company)}.pdf"
     path = os.path.join(RESUMES_DIR, fname)
 
-    doc = Document()
+    if os.path.exists(MASTER_RESUME):
+        shutil.copy2(MASTER_RESUME, path)
+        print(f"   [Resume] PDF ready: {fname}")
+    else:
+        # Fallback: generate basic PDF if master not found
+        _generate_fallback_resume_pdf(path)
+        print(f"   [Resume] Fallback PDF generated: {fname}")
+
+    return path
+
+
+def _generate_fallback_resume_pdf(path):
+    """Basic fallback PDF if master resume file is missing."""
+    from config import RESUME_FULL
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    # Blue color matching master resume
+    BLUE = (43, 87, 151)
+
     # Name header
-    title_para = doc.add_paragraph()
-    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = title_para.add_run(SENDER_NAME)
-    run.bold = True
-    run.font.size = Pt(16)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(0, 12, "AMAN SHARMA", ln=True, align="C")
 
-    contact = doc.add_paragraph()
-    contact.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    contact.add_run("amansharma03feb@gmail.com  |  linkedin.com/in/amansharma03feb  |  India (open to relocate: Ireland/UK/EU)")
+    # Subtitle
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(0, 6,
+             "Sr. Business / System Analyst | US Healthcare Data | "
+             "Claims - Eligibility - MDM | Snowflake - SQL - HIPAA",
+             ln=True, align="C")
 
-    doc.add_paragraph()
+    # Contact line
+    pdf.set_font("Helvetica", "", 9)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 6,
+             "amansharma03feb@gmail.com | +91 8404902779 | "
+             "linkedin.com/in/aman-sharma-a32577162 | Noida, UP, India",
+             ln=True, align="C")
+    pdf.ln(6)
 
+    # Body
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 10)
     for line in RESUME_FULL.strip().split("\n"):
         stripped = line.strip()
         if not stripped:
-            doc.add_paragraph()
+            pdf.ln(3)
             continue
-        p = doc.add_paragraph()
-        if stripped.isupper() or (stripped.endswith(":") and len(stripped) < 40):
-            r = p.add_run(stripped)
-            r.bold = True
+        stripped = _sanitize_latin1(stripped)
+        if stripped.isupper() or (stripped.endswith(":") and len(stripped) < 50):
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_text_color(*BLUE)
+            pdf.cell(0, 7, stripped, ln=True)
+            pdf.set_draw_color(*BLUE)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(2)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Helvetica", "", 10)
         else:
-            p.add_run(stripped)
+            pdf.multi_cell(0, 5, stripped)
 
-    doc.save(path)
-    return path
+    pdf.output(path)
 
 
-# ── Template cover letter DOCX (no Claude) ────────────────────────────────────
+# ── Cover Letter PDF ─────────────────────────────────────────────────────────
 
-def save_cover_letter_docx(cl_text, job_title, company, hr_name):
-    """Generate a template cover letter DOCX. cl_text param ignored (use template)."""
+def save_cover_letter_pdf(cl_text, job_title, company, hr_name):
+    """Generate a professional cover letter PDF. Never DOCX."""
     os.makedirs(CL_DIR, exist_ok=True)
-    date_str = datetime.now().strftime("%Y%m%d")
-    fname = f"CoverLetter_{_safe_filename(job_title)}_{_safe_filename(company)}_{date_str}.docx"
+    fname = f"CoverLetter_{_safe_filename(company)}.pdf"
     path = os.path.join(CL_DIR, fname)
 
     greeting_name = str(hr_name or "").split()[0] if hr_name else "Hiring Manager"
+    date_str = datetime.now().strftime("%d %B %Y")
 
-    body = f"""Dear {greeting_name},
+    BLUE = (43, 87, 151)
 
-I am writing to express my strong interest in the {job_title} position at {company}.
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=25)
 
-With 6+ years of experience delivering healthcare data platforms, AI-enabled products, and enterprise ETL/MDM solutions, I bring a proven track record across US healthcare, fintech, and SaaS domains. At CloudAngles, I designed and owned a Member Identity Resolution & MDM platform for a Fortune-class US health insurer — architecting dual-mode ingestion via Kafka (real-time) and Airflow (batch) on AWS, cutting data processing time by 50%, and governing Snowflake data structures for Power BI, MicroStrategy, and Tableau reporting layers.
+    # Header — right aligned, matching resume blue
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(0, 8, "AMAN SHARMA", ln=True, align="R")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 6, "amansharma03feb@gmail.com", ln=True, align="R")
+    pdf.cell(0, 6, "+91 8404902779", ln=True, align="R")
+    pdf.cell(0, 6, "linkedin.com/in/aman-sharma-a32577162", ln=True, align="R")
+    pdf.cell(0, 6, date_str, ln=True, align="R")
+    pdf.ln(12)
 
-I am actively seeking Senior BA / Technical Product Owner roles in Ireland, UK, and global teams with travel exposure, with a relocation timeline of July 2026. I believe my background closely aligns with what {company} is looking for, and I would welcome the opportunity to discuss how I can contribute to your team.
+    # Greeting
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, _sanitize_latin1(f"Dear {greeting_name},"), ln=True)
+    pdf.ln(4)
 
-Please find my resume attached. I look forward to hearing from you.
+    # Body paragraphs
+    paragraphs = [
+        f"I am writing to express my strong interest in the {job_title} "
+        f"position at {company}.",
 
-Warm regards,
-Aman Sharma
-Senior Business Analyst
-amansharma03feb@gmail.com
-LinkedIn: linkedin.com/in/amansharma03feb"""
+        f"With 6+ years of experience in the US Healthcare domain - "
+        f"delivering healthcare data platforms, member identity resolution (MDM), "
+        f"claims and eligibility data analysis, and HIPAA-compliant reporting "
+        f"workflows - I bring a proven track record across Fortune-class health "
+        f"insurance clients. At CloudAngles, I own end-to-end requirements for a "
+        f"Fortune-class US health insurer across claims, eligibility, member MDM, "
+        f"and Snowflake governance, working with six cross-functional teams.",
 
-    doc = Document()
-    h = doc.add_paragraph()
-    h.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    h.add_run(f"{SENDER_NAME}\namansharma03feb@gmail.com\n{datetime.now().strftime('%d %B %Y')}")
-    doc.add_paragraph()
+        f"My core strengths include SQL-based data analysis and validation in "
+        f"Snowflake, BRD/FRD documentation, ETL pipeline requirements (Kafka, "
+        f"Airflow on AWS), and serving as the compliance anchor for HIPAA/PHI "
+        f"governance. I hold a CSPO certification and an MBA in Business Analytics.",
 
-    for para in body.strip().split("\n\n"):
-        if para.strip():
-            doc.add_paragraph(para.strip())
+        f"I am actively targeting Senior BA / Technical Product Owner roles in "
+        f"Ireland, UK, and global teams with a relocation timeline of July 2026. "
+        f"I believe my background closely aligns with what {company} is looking "
+        f"for, and I would welcome the opportunity to discuss how I can contribute "
+        f"to your team.",
 
-    doc.save(path)
+        f"Please find my resume attached. I look forward to hearing from you.",
+    ]
+
+    pdf.set_font("Helvetica", "", 11)
+    for para in paragraphs:
+        pdf.multi_cell(0, 6, _sanitize_latin1(para))
+        pdf.ln(4)
+
+    # Sign-off
+    pdf.ln(4)
+    pdf.cell(0, 7, "Warm regards,", ln=True)
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(0, 7, "Aman Sharma", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 6, "Senior Business / System Analyst | US Healthcare Data", ln=True)
+    pdf.cell(0, 6, "amansharma03feb@gmail.com", ln=True)
+    pdf.cell(0, 6, "linkedin.com/in/aman-sharma-a32577162", ln=True)
+
+    pdf.output(path)
+    print(f"   [CoverLetter] PDF ready: {fname}")
     return path
 
 
-# ── Template email (no Claude) ────────────────────────────────────────────────
+# ── Email template ───────────────────────────────────────────────────────────
 
 def draft_email(job_title, company, hr_first_name):
-    """Return (subject, body) using a fixed template. Zero Claude cost."""
+    """Return (subject, body). Attachments are always PDF.
+    Subject format per Rule 5: [Role] - [Name] - [Key Differentiator]"""
     first = str(hr_first_name or "").strip() or "Hiring Manager"
 
-    subject = f"Application: {job_title} — Aman Sharma, Senior BA"
+    subject = (
+        f"{job_title} - Aman Sharma - "
+        f"Sr. BA | US Healthcare Data & MDM"
+    )
 
-    body = f"""Dear {first},
-
-I came across the {job_title} opening at {company} and would love to be considered.
-
-I'm a Senior Business Analyst with 6+ years in healthcare data (MDM, Kafka/Airflow ETL, Snowflake, HIPAA) and AI/LLM delivery. I recently led the Member Identity Resolution platform for a Fortune-class US health insurer and have delivered multiple 5-star client engagements. I hold a CSPO certification and am actively targeting Ireland, UK, and global roles with a July 2026 relocation timeline.
-
-My tailored resume and cover letter are attached. Happy to connect for a quick call.
-
-Best regards,
-Aman Sharma
-amansharma03feb@gmail.com | linkedin.com/in/amansharma03feb"""
+    body = (
+        f"Dear {first},\n\n"
+        f"I came across the {job_title} opening at {company} and would love "
+        f"to be considered.\n\n"
+        f"I'm a Senior Business / System Analyst with 6+ years in the US "
+        f"Healthcare domain - specialising in claims and eligibility data "
+        f"analysis, member identity resolution (MDM), SQL-based data validation "
+        f"in Snowflake, and HIPAA-compliant data governance. I currently own "
+        f"end-to-end requirements for a Fortune-class US health insurer at "
+        f"CloudAngles, working across six cross-functional teams on healthcare "
+        f"data pipelines, Snowflake governance, and ETL integration (Kafka, "
+        f"Airflow on AWS).\n\n"
+        f"My resume and cover letter are attached as PDF. Happy to connect "
+        f"for a quick call.\n\n"
+        f"Best regards,\n"
+        f"Aman Sharma\n"
+        f"amansharma03feb@gmail.com | linkedin.com/in/aman-sharma-a32577162"
+    )
 
     return subject, body
 
 
-# ── Kept for backward compatibility — not used ─────────────────────────────────
+# ── Backward compatibility — redirect to PDF ────────────────────────────────
+
+def save_resume_docx(resume_text, job_title, company):
+    """DEPRECATED: Redirects to PDF. Never produces DOCX."""
+    return save_resume_pdf(job_title, company)
+
+
+def save_cover_letter_docx(cl_text, job_title, company, hr_name):
+    """DEPRECATED: Redirects to PDF. Never produces DOCX."""
+    return save_cover_letter_pdf(cl_text, job_title, company, hr_name)
+
 
 def tailor_resume_text(job_title, company, jd_text):
-    """No-op — base resume used instead of Claude tailoring."""
+    """No-op — master resume used."""
     return None
 
 
 def generate_cover_letter(job_title, company, hr_name, jd_text):
-    """No-op — template cover letter used instead of Claude generation."""
+    """No-op — template cover letter used."""
     return None

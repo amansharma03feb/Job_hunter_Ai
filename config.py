@@ -133,34 +133,41 @@ SKILL_WEIGHTS = {
     },
 }
 
-# --- Resume summary (for ATS scoring) ---
+# --- Resume summary (for ATS scoring — matches master resume PDF) ---
 RESUME_SUMMARY = """
-AMAN SHARMA — Senior Business Analyst | AI & Data Platforms | Healthcare Data & MDM
+AMAN SHARMA - Sr. Business / System Analyst | US Healthcare Data | Claims - Eligibility - MDM | Snowflake - SQL - HIPAA
 
-6+ years delivering healthcare data platforms, AI-enabled products, and enterprise ETL solutions.
+6+ years in the US Healthcare domain - eliciting, analysing, and documenting business and data
+requirements for health insurance data platforms.
 
-CURRENT ROLE (CloudAngles, May 2024 – Present):
-- Member Identity Resolution & MDM: golden record design, deterministic + probabilistic matching
-  for a Fortune-class US health insurer (claims, wellness, broker, rewards, biometrics)
-- ETL Pipeline Architecture: dual-mode ingestion via Kafka (real-time) + Airflow (batch) on AWS,
-  50% reduction in data processing time
-- API Plugin Development: REST payload contracts, on-schedule client system integration
-- Snowflake Governance: table structures, data contracts, Power BI / MSTR / Tableau reporting
-- Outbound Reporting: Lambda-triggered S3/SFTP delivery, multi-client bursting logic
-- Production Incident Management: 79 DPIs, 5 PIs resolved maintaining SLAs
-- Back-to-back 5-star ratings, two promotions in six months
+CURRENT ROLE (CloudAngles, May 2024 - Present):
+- Healthcare Data Requirements & BRD/FRD: BRDs, functional requirements, data requirement documents,
+  field definitions, transformation logic, business rules for high-volume health insurance data platforms
+- SQL-Based Data Analysis & Validation (Snowflake): source-to-target reconciliation, row count
+  comparisons, null rate analysis, join integrity validation across healthcare data tables
+- Healthcare Claims & Eligibility Data Analysis: claims processing, member eligibility and enrolment,
+  wellness programme data, broker channel data, biometric records
+- Member Identity Resolution & MDM: golden record, deterministic + probabilistic matching,
+  Master Member ID across claims, eligibility, wellness, broker, rewards, biometrics
+- HIPAA Compliance & PHI Governance: PHI field-level classification, access-tier definitions,
+  minimum necessary standards, audit trail requirements
+- ETL Pipeline Requirements: dual-mode ingestion Kafka (real-time) + Airflow (batch) on AWS,
+  50% data processing time reduction, REST API integration specs
+- Snowflake Data Warehouse Governance: table structures, data contracts, field naming standards,
+  MSTR, Power BI reporting layers
+- UAT & Data Reconciliation: 79 DPIs, 5 PIs resolved maintaining SLAs
+- Back-to-back 5-star ratings, two promotions within six months
 
 PREVIOUS ROLES:
-- AI Chatbot delivery via role-based prompt engineering (Algoworks)
-- WMS migration .NET WinForms to XAML, Fortune 500 delivery, 98% on-time sprint delivery
-- Multi-channel SaaS ad platform with demographic data integration (AdCuratio Media)
-- Credit automation (40% adoption boost), B2C mobile app launch (40% revenue growth) (Aavas Financiers)
+- AI Chatbot BA + Product Owner, WMS migration .NET to XAML, Power BI dashboards (Algoworks)
+- Multi-channel SaaS ad platform, Experian data integration (AdCuratio Media)
+- Credit automation, B2C mobile app, KYC compliance (Aavas Financiers)
 
-SKILLS: AWS (Kafka, Airflow, Lambda, S3), Snowflake, ETL, MDM, Identity Resolution,
-HIPAA, REST API, Power BI, Tableau, MicroStrategy, SQL, Prompt Engineering, Agile/Scrum,
-CSPO, BRD/FRD/SRS, UML, Stakeholder Management
+SKILLS: US Healthcare Data, Claims, Eligibility, MDM, Identity Resolution, HIPAA, PHI,
+Snowflake, SQL, AWS (Kafka, Airflow, Lambda, S3), ETL, Data Governance, BRD, FRD,
+Power BI, MicroStrategy, Tableau, REST API, Agile, Scrum, CSPO, JIRA, Confluence
 
-EDUCATION: MBA Business Analytics (D.Y. Patil), B.Tech CS (MDU Rohtak)
+EDUCATION: MBA Business Analytics (D.Y. Patil 2023-2025), B.Tech CS (MDU Rohtak 2015-2019)
 CERTIFICATIONS: CSPO (Scrum Alliance), Agile & Scrum, DevOps Basics, Google Analytics, Tableau
 """
 

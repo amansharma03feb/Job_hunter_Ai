@@ -8,3 +8,4 @@ google-auth>=2.23.0
 python-jobspy>=1.1.0
 pandas>=2.0.0
 numpy>=1.24.0
+fpdf2>=2.7.0
