@@ -1,36 +1,29 @@
 import os
 import requests
+from dotenv import load_dotenv
 
-# Read bot token from environment for safety. If you prefer another env var name,
-# set TELEGRAM_BOT_TOKEN in your environment before running.
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
-# Chat id can also be provided via env var TELEGRAM_CHAT_ID as fallback.
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "959971760")
+load_dotenv(override=True)   # ensure .env is loaded before reading tokens
 
 
 def send_message(text: str):
-    """Send a message to the configured Telegram chat using BOT_TOKEN.
+    """Send a message to the configured Telegram chat."""
+    # Read fresh each call so env changes / late dotenv loads work
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat_id   = os.getenv("TELEGRAM_CHAT_ID", "959971760")
 
-    Returns a dict with the Telegram API response, or an error dict when the
-    token is missing or the request fails.
-    """
+    if not bot_token:
+        print("[Telegram] TELEGRAM_BOT_TOKEN not set — skipping")
+        return {"ok": False, "error": "Missing TELEGRAM_BOT_TOKEN"}
 
-    if not BOT_TOKEN or BOT_TOKEN == "YOUR_BOT_TOKEN":
-        return {"ok": False, "error": "Missing TELEGRAM_BOT_TOKEN environment variable"}
-
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": text
-    }
+    url     = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text}
 
     try:
-        response = requests.post(url, data=payload, timeout=10)
-        # If Telegram returns non-JSON (rare), fall back to text
+        resp = requests.post(url, data=payload, timeout=10)
         try:
-            return response.json()
+            return resp.json()
         except Exception:
-            return {"ok": False, "error": "Invalid JSON response from Telegram", "status_code": response.status_code}
+            return {"ok": False, "error": "Non-JSON response", "status": resp.status_code}
     except Exception as e:
+        print(f"[Telegram] Send error: {e}")
         return {"ok": False, "error": str(e)}

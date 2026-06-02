@@ -8,7 +8,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 REMOTEOK_API = "https://remoteok.com/api"
-HEADERS = {"User-Agent": "Mozilla/5.0 (Job Hunter Bot — personal use)"}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Job Hunter Bot - personal use)"}
 
 # Tag combinations to query on RemoteOK
 REMOTE_TAG_QUERIES = [

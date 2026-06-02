@@ -29,12 +29,11 @@ jobs:
           # Core (required)
           TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID:    ${{ secrets.TELEGRAM_CHAT_ID }}
-          APIFY_TOKEN:         ${{ secrets.APIFY_TOKEN }}
           ANTHROPIC_API_KEY:   ${{ secrets.ANTHROPIC_API_KEY }}
-          # Gmail outreach (optional)
+          # Gmail outreach
           GMAIL_ADDRESS:       ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
-          # Google Drive upload (optional)
+          # Google Drive upload
           GDRIVE_FOLDER_ID:    ${{ secrets.GDRIVE_FOLDER_ID }}
           GDRIVE_CLIENT_ID:    ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}

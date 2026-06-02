@@ -1,7 +1,7 @@
 """
-AI Job Hunter — Full Multi-Source Outreach Pipeline  v2.2
+AI Job Hunter — Full Multi-Source Outreach Pipeline  v3.0
 
-Sources:   LinkedIn · Indeed · Naukri · RemoteOK
+Sources:   LinkedIn · Indeed · Naukri · RemoteOK  (ALL FREE via JobSpy + RemoteOK API)
 Stages:
   1. SCRAPE       — All 4 sources in parallel batches
   2. VERIFY       — Ghost-post filter (HTTP URL check)
@@ -27,9 +27,7 @@ from config import (
     GMAIL_APP_PASSWORD, MAX_EMAILS_PER_RUN,
     ENABLE_LINKEDIN, ENABLE_INDEED, ENABLE_NAUKRI, ENABLE_REMOTE,
 )
-from linkedin_scraper import scrape_linkedin_jobs
-from indeed_scraper import scrape_indeed_jobs
-from naukri_scraper import scrape_naukri_jobs
+from jobspy_scraper import scrape_linkedin_jobs, scrape_indeed_jobs, scrape_naukri_jobs
 from remote_scraper import scrape_remote_jobs
 from portal_verifier import verify_jobs
 from ats_matcher import filter_best_fits
@@ -110,7 +108,7 @@ def format_job_alert(best_fits, good_fits, stats):
         lines.append("")
 
     lines += [
-        "Powered by AI Job Hunter Agent v2.2",
+        "Powered by AI Job Hunter Agent v3.0",
         "Sources: LinkedIn · Indeed · Naukri · RemoteOK",
         "github.com/amansharma03feb/Job_hunter_Ai",
     ]
@@ -215,7 +213,7 @@ def run_outreach(job, already_contacted):
 
 def run_pipeline():
     print("=" * 60)
-    print("AI JOB HUNTER — Multi-Source Outreach Pipeline v2.2")
+    print("AI JOB HUNTER — Multi-Source Outreach Pipeline v3.0")
     print("=" * 60)
 
     # Stage 1: Scrape all sources

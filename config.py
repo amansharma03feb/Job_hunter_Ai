@@ -27,10 +27,10 @@ SENDER_NAME = "Aman Sharma"
 MAX_EMAILS_PER_RUN = 20  # max cold emails per daily run
 
 # --- Job source toggles ---
-ENABLE_LINKEDIN = True
-ENABLE_INDEED   = False   # slow (Apify polling per query) — re-enable later
-ENABLE_NAUKRI   = False   # slow (Apify polling per query) — re-enable later
-ENABLE_REMOTE   = True    # fast (direct free API)
+ENABLE_LINKEDIN = True    # FREE via JobSpy (was Apify $$$)
+ENABLE_INDEED   = True    # FREE via JobSpy (was Apify $$$)
+ENABLE_NAUKRI   = True    # FREE via JobSpy (was Apify $$$)
+ENABLE_REMOTE   = True    # FREE (RemoteOK public API)
 
 # --- Apify Config ---
 APIFY_BASE_URL = "https://api.apify.com/v2"
