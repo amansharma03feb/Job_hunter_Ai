@@ -160,8 +160,8 @@ def score_job(job):
     return job
 
 
-MAX_CLAUDE_CALLS = 8    # ~$0.016/run max (Haiku ~$0.002/call)
-MIN_KW_FOR_AI = 8       # Skip junk JDs — only score if keyword match >= 8%
+MAX_CLAUDE_CALLS = 10   # ~$0.020/run max (Haiku ~$0.002/call)
+MIN_KW_FOR_AI = 3       # Low bar — let Claude decide relevance, not keywords
 
 # ── Score cache — avoid re-scoring same JD across runs ──────────────────────
 import os, json, hashlib

@@ -110,7 +110,7 @@ SEARCH_QUERIES = [
 ]
 
 # --- ATS Scoring ---
-ATS_THRESHOLD = 50  # BEST FIT threshold (lowered from 60 to increase volume)
+ATS_THRESHOLD = 45  # BEST FIT threshold — lowered to increase outreach volume
 
 SKILL_WEIGHTS = {
     "core_ba": {

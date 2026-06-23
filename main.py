@@ -590,7 +590,7 @@ def run_pipeline():
     print(f"  Ghost posts:   {stats['expired']} removed")
     print(f"  Verified:      {stats['verified']} active")
     print(f"  Best Fit:      {stats['best']} jobs (>={ATS_THRESHOLD}%)")
-    print(f"  Good Fit:      {stats['good']} jobs (40-{ATS_THRESHOLD-1}%)")
+    print(f"  Good Fit:      {stats['good']} jobs (30-{ATS_THRESHOLD-1}%)")
     print(f"  Emails sent:   {emails_sent}")
     print(f"  AI Model:      {'Claude Haiku 4.5' if ai_used else 'Keyword-only'}")
     print("=" * 60)
