@@ -2,14 +2,17 @@ name: AI Job Hunter — Daily Pipeline
 
 on:
   schedule:
-    # 08:00 AM IST = 02:30 AM UTC
+    # 08:00 AM IST = 02:30 UTC
     - cron: '30 2 * * *'
-  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   hunt:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -24,20 +27,31 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create output directory
+        run: mkdir -p output
+
       - name: Run AI Job Hunter Pipeline
         env:
-          # Core (required)
-          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:    ${{ secrets.TELEGRAM_CHAT_ID }}
-          ANTHROPIC_API_KEY:   ${{ secrets.ANTHROPIC_API_KEY }}
-          # Gmail outreach
-          GMAIL_ADDRESS:       ${{ secrets.GMAIL_ADDRESS }}
-          GMAIL_APP_PASSWORD:  ${{ secrets.GMAIL_APP_PASSWORD }}
-          # Google Drive upload
-          GDRIVE_FOLDER_ID:    ${{ secrets.GDRIVE_FOLDER_ID }}
-          GDRIVE_CLIENT_ID:    ${{ secrets.GDRIVE_CLIENT_ID }}
+          FREE_MODE: 'false'
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          APOLLO_API_KEY:       ${{ secrets.APOLLO_API_KEY }}
+          APIFY_TOKEN:          ${{ secrets.APIFY_TOKEN }}
+          GMAIL_ADDRESS:        ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD:   ${{ secrets.GMAIL_APP_PASSWORD }}
+          GDRIVE_FOLDER_ID:     ${{ secrets.GDRIVE_FOLDER_ID }}
+          GDRIVE_CLIENT_ID:     ${{ secrets.GDRIVE_CLIENT_ID }}
           GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
           GDRIVE_REFRESH_TOKEN: ${{ secrets.GDRIVE_REFRESH_TOKEN }}
-          # Hunter.io email validation (optional)
-          HUNTER_API_KEY:      ${{ secrets.HUNTER_API_KEY }}
-        run: python main.py
+          HUNTER_API_KEY:       ${{ secrets.HUNTER_API_KEY }}
+        run: python -u main.py
+
+      - name: Persist caches and tracker
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f output/score_cache.json output/apollo_contacts.json Job_Hunt_Tracker.xlsx 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "chore: update caches and tracker [skip ci]"
+          git push || true

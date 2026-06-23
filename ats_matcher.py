@@ -2,7 +2,7 @@
 
 import json
 import requests
-from config import ANTHROPIC_API_KEY, SKILL_WEIGHTS, RESUME_SUMMARY, ATS_THRESHOLD
+from config import ANTHROPIC_API_KEY, SKILL_WEIGHTS, RESUME_SUMMARY, ATS_THRESHOLD, AI_RESUME_SUMMARY, AI_JOB_KEYWORDS
 
 
 # ── Stage 1: Keyword-based weighted scoring ──────────────────────────────────
@@ -71,6 +71,13 @@ Respond ONLY with valid JSON (no markdown, no explanation):
 }}"""
 
 
+def _pick_resume(description):
+    """Choose AI resume or healthcare resume based on JD keywords."""
+    desc_lower = (description or "").lower()
+    ai_matches = sum(1 for kw in AI_JOB_KEYWORDS if kw in desc_lower)
+    return AI_RESUME_SUMMARY if ai_matches >= 2 else RESUME_SUMMARY
+
+
 def claude_score(description):
     """Use Claude API to semantically score job-resume fit. Returns dict or None."""
     if not ANTHROPIC_API_KEY:
@@ -94,7 +101,7 @@ def claude_score(description):
                     {
                         "role": "user",
                         "content": CLAUDE_SCORING_PROMPT.format(
-                            resume=RESUME_SUMMARY,
+                            resume=_pick_resume(desc_truncated),
                             job_description=desc_truncated,
                         ),
                     }
@@ -153,11 +160,37 @@ def score_job(job):
     return job
 
 
-MAX_CLAUDE_CALLS = 15   # Cap Claude API calls per run to control costs
+MAX_CLAUDE_CALLS = 8    # ~$0.016/run max (Haiku ~$0.002/call)
+MIN_KW_FOR_AI = 8       # Skip junk JDs — only score if keyword match >= 8%
+
+# ── Score cache — avoid re-scoring same JD across runs ──────────────────────
+import os, json, hashlib
+
+_CACHE_FILE = os.path.join(os.path.dirname(__file__), "output", "score_cache.json")
+
+def _load_cache():
+    try:
+        with open(_CACHE_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_cache(cache):
+    os.makedirs(os.path.dirname(_CACHE_FILE), exist_ok=True)
+    try:
+        with open(_CACHE_FILE, "w") as f:
+            json.dump(cache, f)
+    except Exception:
+        pass
+
+def _desc_hash(desc):
+    return hashlib.md5((desc or "")[:2000].encode()).hexdigest()
 
 
 def filter_best_fits(jobs):
     """Score all jobs and return only those meeting threshold, sorted by score."""
+    cache = _load_cache()
+
     # Stage 1: keyword-score everything (free, fast)
     for job in jobs:
         desc = job.get("description", "")
@@ -168,12 +201,28 @@ def filter_best_fits(jobs):
         job["final_score"] = kw   # provisional
 
     # Stage 2: Claude AI only on top-N by keyword score (saves credits)
+    # Skip jobs with very low keyword match — they won't score well anyway
     if ANTHROPIC_API_KEY:
-        top_jobs = sorted(jobs, key=lambda j: j["keyword_score"], reverse=True)[:MAX_CLAUDE_CALLS]
-        print(f"[ATS] Sending top {len(top_jobs)} keyword-filtered jobs to Claude AI...")
+        candidates = [j for j in jobs if j["keyword_score"] >= MIN_KW_FOR_AI]
+        candidates.sort(key=lambda j: j["keyword_score"], reverse=True)
+        top_jobs = candidates[:MAX_CLAUDE_CALLS]
+
+        api_calls = 0
+        cache_hits = 0
         for job in top_jobs:
             desc = job.get("description", "")
-            ai_result = claude_score(desc)
+            dh = _desc_hash(desc)
+
+            # Check cache first
+            if dh in cache:
+                ai_result = cache[dh]
+                cache_hits += 1
+            else:
+                ai_result = claude_score(desc)
+                if ai_result:
+                    cache[dh] = ai_result
+                api_calls += 1
+
             if ai_result:
                 job["ai_score"] = ai_result.get("score", 0)
                 job["ai_verdict"] = ai_result.get("verdict", "UNKNOWN")
@@ -184,19 +233,22 @@ def filter_best_fits(jobs):
                 job["ai_score"] = None
                 job["ai_verdict"] = "SKIPPED"
                 job["ai_reason"] = "Claude API unavailable"
-        # remaining jobs stay at keyword-only final_score
+
+        print(f"[ATS] AI scoring: {api_calls} API calls, {cache_hits} cache hits (saved credits)")
+        _save_cache(cache)
         scored = jobs
     else:
         scored = jobs
 
-    # When no API key, AI scoring is skipped so keyword scores are naturally lower.
-    # Use a lower threshold (25% best / 15% good) to surface relevant jobs.
-    if ANTHROPIC_API_KEY:
-        best_threshold = ATS_THRESHOLD   # 60%
-        good_min = 40
+    # Check if AI scoring actually succeeded
+    ai_worked = any(j.get("ai_score") is not None for j in scored)
+
+    if ai_worked:
+        best_threshold = ATS_THRESHOLD   # 50%
+        good_min = 30
     else:
-        best_threshold = 25
-        good_min = 15
+        best_threshold = 20
+        good_min = 10
 
     best = [j for j in scored if j["final_score"] >= best_threshold]
     best.sort(key=lambda j: j["final_score"], reverse=True)
@@ -204,7 +256,7 @@ def filter_best_fits(jobs):
     good = [j for j in scored if good_min <= j["final_score"] < best_threshold]
     good.sort(key=lambda j: j["final_score"], reverse=True)
 
-    mode = f"AI+Keyword (threshold {best_threshold}%)" if ANTHROPIC_API_KEY else f"Keyword-only (threshold {best_threshold}%)"
+    mode = f"AI+Keyword (threshold {best_threshold}%)" if ai_worked else f"Keyword-only (threshold {best_threshold}%)"
     print(f"[ATS] Scored {len(scored)} jobs [{mode}]: "
           f"{len(best)} BEST FIT (>={best_threshold}%), "
           f"{len(good)} GOOD FIT ({good_min}-{best_threshold-1}%)")

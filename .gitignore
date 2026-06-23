@@ -26,3 +26,15 @@ Thumbs.db
 
 # Claude Code internals
 .claude/
+
+# Generated per-run output (don't track — rebuilt each run)
+output/resumes/
+output/cover_letters/
+output/pipeline_*.log
+output/application_log*.xlsx
+output/Job_Hunt_Tracker_old.xlsx
+pipeline_test.log
+
+# Test scripts (local dev only)
+test_*.py
+resend_corrected.py

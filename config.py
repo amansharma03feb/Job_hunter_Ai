@@ -5,14 +5,20 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-# --- API Keys ---
-APIFY_TOKEN        = os.getenv("APIFY_TOKEN", "")
+# --- Cost control ---
+# Set FREE_MODE=true in .env to disable ALL paid APIs (Claude, Apollo, Apify)
+# Pipeline runs on keyword scoring + free website scraping only
+FREE_MODE = os.getenv("FREE_MODE", "false").lower() == "true"
+
+# --- API Keys (disabled when FREE_MODE=true) ---
+APIFY_TOKEN        = "" if FREE_MODE else os.getenv("APIFY_TOKEN", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.getenv("TELEGRAM_CHAT_ID", "959971760")
-ANTHROPIC_API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY  = "" if FREE_MODE else os.getenv("ANTHROPIC_API_KEY", "")
 GMAIL_ADDRESS      = os.getenv("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")
 HUNTER_API_KEY     = os.getenv("HUNTER_API_KEY", "")   # optional — 25 free/month
+APOLLO_API_KEY     = "" if FREE_MODE else os.getenv("APOLLO_API_KEY", "")
 
 # --- Google Drive (OAuth2 — files owned by your Gmail, uses your storage) ---
 GDRIVE_FOLDER_ID     = os.getenv("GDRIVE_FOLDER_ID", "1zOujN0Iq05l4Ld1AjUo-SU9hCGYJNPgp")
@@ -24,19 +30,21 @@ GDRIVE_REFRESH_TOKEN = os.getenv("GDRIVE_REFRESH_TOKEN", "")
 SENDER_NAME = "Aman Sharma"
 
 # --- Outreach limits (cost + spam control) ---
-MAX_EMAILS_PER_RUN = 20  # max cold emails per daily run
+MAX_EMAILS_PER_RUN = 40  # max cold emails per daily run
+FOLLOWUP_AFTER_DAYS = 5  # send follow-up if no reply after N days
 
 # --- Job source toggles ---
-ENABLE_LINKEDIN = True    # FREE via JobSpy (was Apify $$$)
-ENABLE_INDEED   = True    # FREE via JobSpy (was Apify $$$)
-ENABLE_NAUKRI   = True    # FREE via JobSpy (was Apify $$$)
-ENABLE_REMOTE   = True    # FREE (RemoteOK public API)
+ENABLE_LINKEDIN      = True    # FREE via JobSpy + Apify fallback
+ENABLE_INDEED        = False   # 403 from India IPs — enable with VPN/proxy
+ENABLE_ZIPRECRUITER  = False   # 403 from India IPs — enable with VPN/proxy
+ENABLE_REMOTE        = True    # FREE (RemoteOK public API)
 
 # --- Apify Config ---
 APIFY_BASE_URL = "https://api.apify.com/v2"
 
-# --- Target Roles ---
+# --- Target Roles (Healthcare + AI/AdTech) ---
 TARGET_TITLES = [
+    # Healthcare / Data Platform
     "Technical Process Owner",
     "Technical Product Owner",
     "Data Platform Product Manager",
@@ -50,36 +58,59 @@ TARGET_TITLES = [
     "MDM Analyst",
     "ETL Business Analyst",
     "Healthcare Business Analyst",
+    # AI / AdTech domain — BA & PO roles only
     "AI Business Analyst",
+    "AI Product Analyst",
+    "AI Product Owner",
+    "AI Solutions Analyst",
+    "AI Operations Analyst",
+    "AdTech Business Analyst",
+    "Product Owner AI",
+    "Business Analyst Machine Learning",
 ]
 
 # --- Search Queries (title + location pairs) ---
 SEARCH_QUERIES = [
-    # Ireland
+    # ═══ Ireland ═══
     {"title": "Technical Product Owner", "location": "Ireland"},
     {"title": "Data Product Owner", "location": "Ireland"},
     {"title": "Senior Business Analyst healthcare", "location": "Ireland"},
     {"title": "Technical Business Analyst", "location": "Ireland"},
     {"title": "Data Platform Product Manager", "location": "Ireland"},
+    {"title": "AI Business Analyst", "location": "Ireland"},
+    {"title": "AI Product Owner", "location": "Ireland"},
+    {"title": "Business Analyst AI machine learning", "location": "Ireland"},
 
-    # United Kingdom
+    # ═══ United Kingdom ═══
     {"title": "Technical Product Owner", "location": "United Kingdom"},
     {"title": "Senior Business Analyst data platform", "location": "United Kingdom"},
     {"title": "Technical Business Analyst", "location": "United Kingdom"},
+    {"title": "AI Business Analyst", "location": "United Kingdom"},
+    {"title": "Business Analyst generative AI", "location": "United Kingdom"},
+    {"title": "Product Owner AI", "location": "United Kingdom"},
 
-    # India — global roles with travel / onsite exposure
+    # ═══ EU / Remote ═══
+    {"title": "AI Business Analyst", "location": "Germany"},
+    {"title": "Business Analyst AI", "location": "Netherlands"},
+    {"title": "AI Product Owner", "location": "Europe"},
+
+    # ═══ India (global companies, travel/relocation potential) ═══
     {"title": "Senior Business Analyst healthcare", "location": "India"},
     {"title": "Technical Product Owner", "location": "India"},
     {"title": "Data Product Owner", "location": "India"},
     {"title": "Technical Business Analyst", "location": "Bangalore"},
     {"title": "Senior Business Analyst MDM", "location": "India"},
+    {"title": "AI Business Analyst", "location": "India"},
+    {"title": "Business Analyst AI LLM", "location": "Bangalore"},
+    {"title": "AI Product Owner", "location": "India"},
+    {"title": "Business Analyst generative AI", "location": "India"},
     {"title": "Senior Business Analyst data platform", "location": "Hyderabad"},
     {"title": "Senior Business Analyst AWS Snowflake", "location": "India"},
-    {"title": "Business Analyst healthcare data", "location": "Pune"},
+    {"title": "Business Analyst AdTech", "location": "India"},
 ]
 
 # --- ATS Scoring ---
-ATS_THRESHOLD = 60  # BEST FIT threshold (AI-hybrid: 20% keyword + 80% Claude)
+ATS_THRESHOLD = 50  # BEST FIT threshold (lowered from 60 to increase volume)
 
 SKILL_WEIGHTS = {
     "core_ba": {
@@ -109,10 +140,21 @@ SKILL_WEIGHTS = {
         ],
     },
     "ai_ml": {
-        "weight": 3,
+        "weight": 4,
         "skills": [
             "ai", "artificial intelligence", "machine learning", "prompt engineering",
             "chatbot", "nlp", "generative ai", "llm", "gpt", "automation",
+            "rag", "retrieval augmented", "agentic", "langgraph", "langchain",
+            "ai product", "ai native", "ai solutions", "openai", "claude",
+            "vector database", "embeddings", "fine-tuning", "ai validation",
+        ],
+    },
+    "adtech_media": {
+        "weight": 2,
+        "skills": [
+            "adtech", "ad tech", "advertising", "addressable tv", "audience targeting",
+            "ad delivery", "campaign", "media", "programmatic", "dsp", "ssp",
+            "ad inventory", "ad sales", "forecasting", "pricing model",
         ],
     },
     "reporting_bi": {
@@ -233,3 +275,41 @@ Reporting:   Power BI, Tableau, MicroStrategy, SQL, Excel
 Integration: REST API, JSON, SFTP, Microservices, Data Contracts
 AI:          Prompt Engineering, Generative AI, LLM workflows, Chatbot delivery
 """
+
+# --- AI Resume summary (for AI/AdTech jobs — second resume) ---
+AI_RESUME_SUMMARY = """
+AMAN SHARMA - AI-Native Business Analyst · AdTech & Media · Agentic AI & RAG Applications
+
+6+ years as an AI-Native BA who goes beyond documentation — building working RAG applications,
+agentic AI prototypes, and AI-generated UI mockups. Hands-on across the full AI-native BA toolkit:
+LangGraph-orchestrated agentic workflows, RAG pipeline architecture, state management, tool access
+patterns, external memory design, and prompt engineering.
+
+CURRENT ROLE (CloudAngles, May 2024 - Present):
+- Applied AI-native approach to MDM decision review — LangGraph-orchestrated agentic workflows
+  (candidate ingestion → confidence scoring → auto-merge gate → steward review → audit memo),
+  RAG-based operational Q&A, state management, tool access patterns, PII masking layers
+- Led member identity resolution (MDM) — deterministic + probabilistic matching
+- UAT, data validation, Snowflake source-to-target reconciliation, 79 production data issues resolved
+- Back-to-back 5-star ratings; two promotions within six months
+
+PREVIOUS ROLES:
+- AI Chatbot BA + Product Owner: GPT-4 RAG sales intelligence chatbot, Airtable knowledge base,
+  prompt engineering (role-based, constraint design, few-shot), Gemini Q&A validation (Algoworks)
+- AdTech BA: Multi-channel addressable TV platform, audience targeting, ad delivery predictor,
+  Experian demographic integration, Tableau dashboards (AdCuratio Media)
+- BA: Credit automation, B2C mobile app, KYC compliance, Razorpay (Aavas Financiers)
+
+SKILLS: Agentic AI, RAG Pipeline, LangGraph, Prompt Engineering, AI Mockups, AI Validation,
+Ad Sales, Audience Targeting, Pricing Optimization, Forecasting Models,
+Snowflake, SQL, AWS, ETL, BRD/FRD, Agile, Scrum, CSPO, Power BI, Tableau, MSTR
+"""
+
+# --- AI keywords for resume selection ---
+AI_JOB_KEYWORDS = [
+    "ai ", "artificial intelligence", "machine learning", "generative ai", "gen ai",
+    "llm", "gpt", "rag", "retrieval augmented", "agentic", "langgraph", "langchain",
+    "prompt engineer", "nlp", "natural language", "chatbot", "ai product",
+    "ai native", "ai solution", "adtech", "ad tech", "advertising technology",
+    "addressable", "audience targeting", "programmatic", "media tech",
+]

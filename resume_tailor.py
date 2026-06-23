@@ -18,12 +18,20 @@ import re
 import shutil
 from datetime import datetime
 from fpdf import FPDF
-from config import SENDER_NAME
+from config import SENDER_NAME, AI_JOB_KEYWORDS
 
 OUTPUT_DIR  = "output"
 RESUMES_DIR = os.path.join(OUTPUT_DIR, "resumes")
 CL_DIR      = os.path.join(OUTPUT_DIR, "cover_letters")
-MASTER_RESUME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "master_resume.pdf")
+_ASSETS     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
+MASTER_RESUME    = os.path.join(_ASSETS, "master_resume.pdf")
+AI_RESUME        = os.path.join(_ASSETS, "ai_resume.pdf")
+
+
+def _is_ai_job(job_title, description=""):
+    """Return True if the job matches AI/AdTech profile."""
+    text = f"{job_title} {description}".lower()
+    return sum(1 for kw in AI_JOB_KEYWORDS if kw in text) >= 2
 
 
 def _safe_filename(s):
@@ -51,18 +59,20 @@ def _sanitize_latin1(text):
 
 # ── Resume PDF (master copy) ────────────────────────────────────────────────
 
-def save_resume_pdf(job_title, company):
-    """Copy master resume PDF with company-specific filename.
+def save_resume_pdf(job_title, company, description=""):
+    """Copy the right resume PDF (AI or healthcare) with company-specific filename.
     NEVER generates DOCX. Always PDF."""
     os.makedirs(RESUMES_DIR, exist_ok=True)
+    ai_job = _is_ai_job(job_title, description)
+    source = AI_RESUME if ai_job and os.path.exists(AI_RESUME) else MASTER_RESUME
+    tag = "AI" if ai_job else "Healthcare"
     fname = f"Aman_Sharma_Resume_{_safe_filename(company)}.pdf"
     path = os.path.join(RESUMES_DIR, fname)
 
-    if os.path.exists(MASTER_RESUME):
-        shutil.copy2(MASTER_RESUME, path)
-        print(f"   [Resume] PDF ready: {fname}")
+    if os.path.exists(source):
+        shutil.copy2(source, path)
+        print(f"   [Resume] {tag} PDF ready: {fname}")
     else:
-        # Fallback: generate basic PDF if master not found
         _generate_fallback_resume_pdf(path)
         print(f"   [Resume] Fallback PDF generated: {fname}")
 
@@ -88,8 +98,8 @@ def _generate_fallback_resume_pdf(path):
     # Subtitle
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(0, 6,
-             "Sr. Business / System Analyst | US Healthcare Data | "
-             "Claims - Eligibility - MDM | Snowflake - SQL - HIPAA",
+             "Sr. Business / System Analyst | Healthcare Data & AI | "
+             "Claims - MDM - Agentic AI | Snowflake - SQL",
              ln=True, align="C")
 
     # Contact line
@@ -127,41 +137,8 @@ def _generate_fallback_resume_pdf(path):
 
 # ── Cover Letter PDF ─────────────────────────────────────────────────────────
 
-def save_cover_letter_pdf(cl_text, job_title, company, hr_name):
-    """Generate a professional cover letter PDF. Never DOCX."""
-    os.makedirs(CL_DIR, exist_ok=True)
-    fname = f"CoverLetter_{_safe_filename(company)}.pdf"
-    path = os.path.join(CL_DIR, fname)
-
-    greeting_name = str(hr_name or "").split()[0] if hr_name else "Hiring Manager"
-    date_str = datetime.now().strftime("%d %B %Y")
-
-    BLUE = (43, 87, 151)
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=25)
-
-    # Header — right aligned, matching resume blue
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.set_text_color(*BLUE)
-    pdf.cell(0, 8, "AMAN SHARMA", ln=True, align="R")
-    pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(80, 80, 80)
-    pdf.cell(0, 6, "amansharma03feb@gmail.com", ln=True, align="R")
-    pdf.cell(0, 6, "+91 8404902779", ln=True, align="R")
-    pdf.cell(0, 6, "linkedin.com/in/aman-sharma-a32577162", ln=True, align="R")
-    pdf.cell(0, 6, date_str, ln=True, align="R")
-    pdf.ln(12)
-
-    # Greeting
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 8, _sanitize_latin1(f"Dear {greeting_name},"), ln=True)
-    pdf.ln(4)
-
-    # Body paragraphs
-    paragraphs = [
+def _healthcare_paragraphs(job_title, company):
+    return [
         f"I am writing to express my strong interest in the {job_title} "
         f"position at {company}.",
 
@@ -187,12 +164,81 @@ def save_cover_letter_pdf(cl_text, job_title, company, hr_name):
         f"Please find my resume attached. I look forward to hearing from you.",
     ]
 
+
+def _ai_paragraphs(job_title, company):
+    return [
+        f"I am writing to express my strong interest in the {job_title} "
+        f"position at {company}.",
+
+        f"I am an AI-Native Business Analyst with 6+ years of experience who "
+        f"goes beyond documentation - building working RAG applications, agentic "
+        f"AI prototypes, and AI-generated UI mockups. I am hands-on across the "
+        f"full AI-native BA toolkit: LangGraph-orchestrated agentic workflows, "
+        f"RAG pipeline architecture, state management, tool access patterns, "
+        f"external memory design, and prompt engineering.",
+
+        f"At CloudAngles, I applied an AI-native approach to MDM decision review "
+        f"using LangGraph-orchestrated agentic workflows (candidate ingestion, "
+        f"confidence scoring, auto-merge gate, steward review, audit memo), "
+        f"RAG-based operational Q&A, and PII masking layers. Previously at "
+        f"AdCuratio Media, I built requirements for a multi-channel addressable "
+        f"TV platform covering audience targeting, ad delivery prediction, and "
+        f"Experian demographic integration.",
+
+        f"I am actively targeting AI/AdTech BA and Product Owner roles in "
+        f"Ireland, UK, and global teams with a relocation timeline of July 2026. "
+        f"I believe my hands-on AI experience closely aligns with what {company} "
+        f"is looking for, and I would welcome the opportunity to discuss how I "
+        f"can contribute to your team.",
+
+        f"Please find my resume attached. I look forward to hearing from you.",
+    ]
+
+
+def save_cover_letter_pdf(cl_text, job_title, company, hr_name, description=""):
+    """Generate a professional cover letter PDF. Never DOCX."""
+    os.makedirs(CL_DIR, exist_ok=True)
+    fname = f"CoverLetter_{_safe_filename(company)}.pdf"
+    path = os.path.join(CL_DIR, fname)
+
+    greeting_name = str(hr_name or "").split()[0] if hr_name else "Hiring Manager"
+    date_str = datetime.now().strftime("%d %B %Y")
+    ai_job = _is_ai_job(job_title, description)
+
+    BLUE = (43, 87, 151)
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=25)
+
+    # Header
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(*BLUE)
+    pdf.cell(0, 8, "AMAN SHARMA", ln=True, align="R")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 6, "amansharma03feb@gmail.com", ln=True, align="R")
+    pdf.cell(0, 6, "+91 8404902779", ln=True, align="R")
+    pdf.cell(0, 6, "linkedin.com/in/aman-sharma-a32577162", ln=True, align="R")
+    pdf.cell(0, 6, date_str, ln=True, align="R")
+    pdf.ln(12)
+
+    # Greeting
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, _sanitize_latin1(f"Dear {greeting_name},"), ln=True)
+    pdf.ln(4)
+
+    # Body paragraphs — AI or healthcare
+    paragraphs = _ai_paragraphs(job_title, company) if ai_job else _healthcare_paragraphs(job_title, company)
+
     pdf.set_font("Helvetica", "", 11)
     for para in paragraphs:
         pdf.multi_cell(0, 6, _sanitize_latin1(para))
         pdf.ln(4)
 
     # Sign-off
+    subtitle = "Sr. Business Analyst | AI & AdTech Domain" if ai_job else "Senior Business / System Analyst | US Healthcare Data"
     pdf.ln(4)
     pdf.cell(0, 7, "Warm regards,", ln=True)
     pdf.ln(2)
@@ -201,45 +247,70 @@ def save_cover_letter_pdf(cl_text, job_title, company, hr_name):
     pdf.cell(0, 7, "Aman Sharma", ln=True)
     pdf.set_font("Helvetica", "", 10)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(0, 6, "Senior Business / System Analyst | US Healthcare Data", ln=True)
+    pdf.cell(0, 6, subtitle, ln=True)
     pdf.cell(0, 6, "amansharma03feb@gmail.com", ln=True)
     pdf.cell(0, 6, "linkedin.com/in/aman-sharma-a32577162", ln=True)
 
     pdf.output(path)
-    print(f"   [CoverLetter] PDF ready: {fname}")
+    tag = "AI" if ai_job else "Healthcare"
+    print(f"   [CoverLetter] {tag} PDF ready: {fname}")
     return path
 
 
 # ── Email template ───────────────────────────────────────────────────────────
 
-def draft_email(job_title, company, hr_first_name):
+def draft_email(job_title, company, hr_first_name, description=""):
     """Return (subject, body). Attachments are always PDF.
     Subject format per Rule 5: [Role] - [Name] - [Key Differentiator]"""
     first = str(hr_first_name or "").strip() or "Hiring Manager"
+    ai_job = _is_ai_job(job_title, description)
 
-    subject = (
-        f"{job_title} - Aman Sharma - "
-        f"Sr. BA | US Healthcare Data & MDM"
-    )
-
-    body = (
-        f"Dear {first},\n\n"
-        f"I came across the {job_title} opening at {company} and would love "
-        f"to be considered.\n\n"
-        f"I'm a Senior Business / System Analyst with 6+ years in the US "
-        f"Healthcare domain - specialising in claims and eligibility data "
-        f"analysis, member identity resolution (MDM), SQL-based data validation "
-        f"in Snowflake, and HIPAA-compliant data governance. I currently own "
-        f"end-to-end requirements for a Fortune-class US health insurer at "
-        f"CloudAngles, working across six cross-functional teams on healthcare "
-        f"data pipelines, Snowflake governance, and ETL integration (Kafka, "
-        f"Airflow on AWS).\n\n"
-        f"My resume and cover letter are attached as PDF. Happy to connect "
-        f"for a quick call.\n\n"
-        f"Best regards,\n"
-        f"Aman Sharma\n"
-        f"amansharma03feb@gmail.com | linkedin.com/in/aman-sharma-a32577162"
-    )
+    if ai_job:
+        subject = (
+            f"{job_title} - Aman Sharma - "
+            f"AI-Native BA | Agentic AI & RAG"
+        )
+        body = (
+            f"Dear {first},\n\n"
+            f"I came across the {job_title} opening at {company} and would love "
+            f"to be considered.\n\n"
+            f"I'm an AI-Native Business Analyst with 6+ years of experience - "
+            f"I go beyond documentation to build working RAG applications, "
+            f"agentic AI prototypes (LangGraph), and AI-generated UI mockups. "
+            f"At CloudAngles, I applied AI-native approaches to MDM decision "
+            f"review using LangGraph-orchestrated agentic workflows and "
+            f"RAG-based operational Q&A. Previously at AdCuratio Media, I "
+            f"delivered a multi-channel addressable TV platform with audience "
+            f"targeting and ad delivery prediction.\n\n"
+            f"My resume and cover letter are attached as PDF. Happy to connect "
+            f"for a quick call.\n\n"
+            f"Best regards,\n"
+            f"Aman Sharma\n"
+            f"amansharma03feb@gmail.com | linkedin.com/in/aman-sharma-a32577162"
+        )
+    else:
+        subject = (
+            f"{job_title} - Aman Sharma - "
+            f"Sr. BA | US Healthcare Data & MDM"
+        )
+        body = (
+            f"Dear {first},\n\n"
+            f"I came across the {job_title} opening at {company} and would love "
+            f"to be considered.\n\n"
+            f"I'm a Senior Business / System Analyst with 6+ years in the US "
+            f"Healthcare domain - specialising in claims and eligibility data "
+            f"analysis, member identity resolution (MDM), SQL-based data validation "
+            f"in Snowflake, and HIPAA-compliant data governance. I currently own "
+            f"end-to-end requirements for a Fortune-class US health insurer at "
+            f"CloudAngles, working across six cross-functional teams on healthcare "
+            f"data pipelines, Snowflake governance, and ETL integration (Kafka, "
+            f"Airflow on AWS).\n\n"
+            f"My resume and cover letter are attached as PDF. Happy to connect "
+            f"for a quick call.\n\n"
+            f"Best regards,\n"
+            f"Aman Sharma\n"
+            f"amansharma03feb@gmail.com | linkedin.com/in/aman-sharma-a32577162"
+        )
 
     return subject, body
 
