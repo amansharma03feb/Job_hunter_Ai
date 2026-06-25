@@ -31,7 +31,7 @@ from telegram_sender import send_message
 from hr_finder import (
     extract_hr_info, guess_company_domain, find_agency_contact,
     enrich_with_poster_data, find_website_hr_contact, google_find_recruiter,
-    apollo_find_recruiter,
+    apollo_find_recruiter, verify_email_domain, verify_email_smtp,
 )
 from resume_tailor import draft_email, save_resume_pdf, save_cover_letter_pdf
 from gdrive_uploader import upload_documents
@@ -273,6 +273,24 @@ def run_outreach(job, already_contacted):
         return False
 
     print(f"   [Email] {hr_email} (confidence: {confidence})")
+
+    # Verify email before investing in resume/cover letter/drive upload
+    if confidence in ("pattern", "apollo_pattern", "google_recruiter", "hr_alias"):
+        if not verify_email_domain(hr_email):
+            print(f"   [Verify] Domain has no MX records — skipping {hr_email}")
+            job["_email_status"] = "domain_invalid"
+            log_application(job, hr_info, hr_email, confidence, "domain_invalid")
+            return False
+        smtp_result = verify_email_smtp(hr_email)
+        if smtp_result is False:
+            print(f"   [Verify] SMTP rejected {hr_email} — skipping")
+            job["_email_status"] = "smtp_rejected"
+            log_application(job, hr_info, hr_email, confidence, "smtp_rejected")
+            return False
+        if smtp_result is True:
+            print(f"   [Verify] SMTP confirmed {hr_email}")
+        else:
+            print(f"   [Verify] SMTP inconclusive — sending anyway")
 
     # Flag direct apply opportunities
     apply_url = job.get("apply_url") or job.get("url", "")

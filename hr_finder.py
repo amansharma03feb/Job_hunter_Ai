@@ -331,27 +331,58 @@ def build_generic_patterns(domain):
     return [(f"{alias}@{domain}", alias) for alias in _GENERIC_ALIASES]
 
 
-def verify_email_smtp(email):
-    """
-    Quick SMTP RCPT TO check — verifies if an email address exists.
-    Returns True if the server accepts, False if rejected, None if inconclusive.
-    """
-    domain = email.split("@")[1]
+def _get_mx_host(domain):
+    """Resolve MX record for a domain. Returns best MX host or None."""
     try:
-        mx_host = domain
-        socket.getaddrinfo(mx_host, 25)
+        import dns.resolver
+        answers = dns.resolver.resolve(domain, "MX")
+        mx_records = sorted(answers, key=lambda r: r.preference)
+        return str(mx_records[0].exchange).rstrip(".")
     except Exception:
         return None
+
+
+def verify_email_domain(email):
+    """Check if the email domain has valid MX records (can receive mail).
+    Returns True if MX exists, False if not."""
+    domain = email.split("@")[1]
+    mx = _get_mx_host(domain)
+    if mx:
+        return True
+    try:
+        socket.getaddrinfo(domain, 25)
+        return True
+    except socket.gaierror:
+        return False
+
+
+def verify_email_smtp(email):
+    """
+    SMTP RCPT TO check — verifies if an email address exists.
+    Returns True if accepted, False if rejected, None if inconclusive.
+    """
+    domain = email.split("@")[1]
+    mx_host = _get_mx_host(domain)
+    if not mx_host:
+        try:
+            socket.getaddrinfo(domain, 25)
+            mx_host = domain
+        except Exception:
+            return None
 
     try:
         import smtplib
         smtp = smtplib.SMTP(timeout=10)
         smtp.connect(mx_host, 25)
-        smtp.helo("verify.local")
-        smtp.mail("verify@verify.local")
+        smtp.helo("jobhunter.local")
+        smtp.mail("noreply@jobhunter.local")
         code, _ = smtp.rcpt(email)
         smtp.quit()
-        return code == 250
+        if code == 250:
+            return True
+        if code in (550, 551, 552, 553):
+            return False
+        return None
     except Exception:
         return None
 
