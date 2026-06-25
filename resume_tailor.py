@@ -156,7 +156,7 @@ def _healthcare_paragraphs(job_title, company):
         f"governance. I hold a CSPO certification and an MBA in Business Analytics.",
 
         f"I am actively targeting Senior BA / Technical Product Owner roles in "
-        f"Ireland, UK, and global teams with a relocation timeline of July 2026. "
+        f"Ireland, UK, UAE, and global teams with a relocation timeline of July 2026. "
         f"I believe my background closely aligns with what {company} is looking "
         f"for, and I would welcome the opportunity to discuss how I can contribute "
         f"to your team.",
@@ -186,7 +186,7 @@ def _ai_paragraphs(job_title, company):
         f"Experian demographic integration.",
 
         f"I am actively targeting AI/AdTech BA and Product Owner roles in "
-        f"Ireland, UK, and global teams with a relocation timeline of July 2026. "
+        f"Ireland, UK, UAE, and global teams with a relocation timeline of July 2026. "
         f"I believe my hands-on AI experience closely aligns with what {company} "
         f"is looking for, and I would welcome the opportunity to discuss how I "
         f"can contribute to your team.",

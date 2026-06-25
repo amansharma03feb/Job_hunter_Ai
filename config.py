@@ -94,6 +94,14 @@ SEARCH_QUERIES = [
     {"title": "Business Analyst AI", "location": "Netherlands"},
     {"title": "AI Product Owner", "location": "Europe"},
 
+    # ═══ UAE / Dubai ═══
+    {"title": "Senior Business Analyst", "location": "Dubai"},
+    {"title": "Technical Product Owner", "location": "UAE"},
+    {"title": "AI Business Analyst", "location": "Dubai"},
+    {"title": "Data Product Owner", "location": "UAE"},
+    {"title": "Business Analyst healthcare", "location": "Dubai"},
+    {"title": "AI Product Owner", "location": "UAE"},
+
     # ═══ India (global companies, travel/relocation potential) ═══
     {"title": "Senior Business Analyst healthcare", "location": "India"},
     {"title": "Technical Product Owner", "location": "India"},
@@ -223,7 +231,7 @@ PROFESSIONAL SUMMARY
 Senior Business Analyst with 6+ years of experience delivering healthcare data platforms,
 AI-enabled products, and enterprise ETL/MDM solutions. Proven track record bridging business
 and engineering teams across US healthcare, fintech, logistics, and SaaS domains.
-Seeking Senior BA / Technical Product Owner roles in Ireland, UK, or global India teams with travel exposure.
+Seeking Senior BA / Technical Product Owner roles in Ireland, UK, UAE, or global India teams with travel exposure.
 
 EXPERIENCE
 
